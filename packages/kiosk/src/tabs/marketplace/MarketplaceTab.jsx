@@ -48,7 +48,6 @@ export default function MarketplaceTab() {
     setSubmitting(true);
     publish(MARKETPLACE.ORDER_CREATED, envelope);
 
-    // Reset form
     setTimeout(() => {
       setCustomerName('');
       setEmail('');
@@ -58,89 +57,67 @@ export default function MarketplaceTab() {
   }
 
   return (
-    <div className="h-full flex flex-col gap-6 p-6 overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <span className="text-2xl">🛒</span>
-        <h2 className="text-xl font-semibold text-white">Marketplace — Order Entry</h2>
-        <span className="ml-auto text-xs text-gray-400 font-mono bg-[#0a2e4d] px-2 py-1 rounded">
-          Level 5 — Commerce
-        </span>
-      </div>
+    <div className="h-full flex gap-4 p-4 overflow-hidden">
+      {/* LEFT — Order Form */}
+      <form onSubmit={handlePlaceOrder} className="flex-1 flex flex-col gap-4 min-w-0">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-white uppercase tracking-wide">Order Entry</h2>
+          <span className="text-[10px] font-mono text-white/30">L5 COMMERCE</span>
+        </div>
 
-      {/* Order Form */}
-      <form onSubmit={handlePlaceOrder} className="flex flex-col gap-5">
-        {/* Customer Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-              Customer Name
-            </label>
+        {/* Customer fields */}
+        <div className="flex gap-3">
+          <div className="flex-1 flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Customer</label>
             <input
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="e.g. Claire Dupont"
+              placeholder="Name"
               required
-              className="bg-[#0a2e4d] border border-[#1a4a6e] rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-[#00C895] focus:ring-1 focus:ring-[#00C895] transition-colors"
+              className="bg-black border border-white/10 text-white font-mono px-3 py-2 text-sm placeholder-white/20 focus:outline-none focus:border-[#00C895]"
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-              Professional Email
-            </label>
+          <div className="flex-1 flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. claire@acme-mfg.com"
+              placeholder="email@company.com"
               required
-              className="bg-[#0a2e4d] border border-[#1a4a6e] rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-[#00C895] focus:ring-1 focus:ring-[#00C895] transition-colors"
+              className="bg-black border border-white/10 text-white font-mono px-3 py-2 text-sm placeholder-white/20 focus:outline-none focus:border-[#00C895]"
             />
           </div>
         </div>
 
-        {/* Sweet Selection Grid */}
-        <div>
-          <label className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3 block">
-            Select Sweets
-          </label>
-          <div className="grid grid-cols-2 gap-3">
+        {/* Sweet selection — horizontal row */}
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] uppercase tracking-widest text-white/40 font-mono mb-2">Items</label>
+          <div className="flex gap-0 border border-white/10 divide-x divide-white/10">
             {SWEETS.map((sweet) => (
-              <div
-                key={sweet.id}
-                className="bg-[#0a2e4d] border border-[#1a4a6e] rounded-xl p-4 flex items-center gap-4 hover:border-[#00C895]/40 transition-colors"
-              >
-                <div
-                  className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl shrink-0"
-                  style={{ backgroundColor: `${sweet.color}20` }}
-                >
-                  {sweet.emoji}
+              <div key={sweet.id} className="flex-1 flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-base">{sweet.emoji}</span>
+                  <span className="text-xs text-white/70 truncate">{sweet.name}</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-white truncate">{sweet.name}</div>
-                  <div className="text-xs text-gray-500">Bin {sweet.bin}</div>
-                </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 shrink-0 ml-2">
                   <button
                     type="button"
                     onClick={() => adjustQty(sweet.id, -1)}
                     disabled={quantities[sweet.id] === 0}
-                    className="w-7 h-7 rounded-md bg-[#03213B] border border-[#1a4a6e] text-white flex items-center justify-center text-lg font-bold disabled:opacity-30 hover:border-[#00C895] transition-colors"
+                    className="w-5 h-5 border border-white/10 text-white/50 flex items-center justify-center text-xs font-bold disabled:opacity-20 hover:border-white/30"
                   >
-                    −
+                    -
                   </button>
-                  <span
-                    className="w-6 text-center text-sm font-semibold"
-                    style={{ color: quantities[sweet.id] > 0 ? sweet.color : '#6b7280' }}
-                  >
+                  <span className={`w-5 text-center text-xs font-mono ${quantities[sweet.id] > 0 ? 'text-white' : 'text-white/20'}`}>
                     {quantities[sweet.id]}
                   </span>
                   <button
                     type="button"
                     onClick={() => adjustQty(sweet.id, 1)}
                     disabled={quantities[sweet.id] >= 10}
-                    className="w-7 h-7 rounded-md bg-[#03213B] border border-[#1a4a6e] text-white flex items-center justify-center text-lg font-bold disabled:opacity-30 hover:border-[#00C895] transition-colors"
+                    className="w-5 h-5 border border-white/10 text-white/50 flex items-center justify-center text-xs font-bold disabled:opacity-20 hover:border-white/30"
                   >
                     +
                   </button>
@@ -154,39 +131,27 @@ export default function MarketplaceTab() {
         <button
           type="submit"
           disabled={submitting || totalItems === 0 || !customerName.trim() || !email.trim()}
-          className="w-full py-3 rounded-xl font-bold text-sm uppercase tracking-wider bg-[#00C895] text-[#03213B] hover:bg-[#00e6aa] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
+          className="w-full py-2.5 font-bold text-sm uppercase tracking-wider bg-[#00C895] text-black disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
         >
-          {submitting ? (
-            <>
-              <span className="animate-spin">⏳</span> Sending...
-            </>
-          ) : (
-            <>
-              🚀 Place Order{totalItems > 0 && ` (${totalItems} item${totalItems > 1 ? 's' : ''})`}
-            </>
-          )}
+          {submitting ? 'SENDING...' : `SUBMIT ORDER${totalItems > 0 ? ` (${totalItems})` : ''}`}
         </button>
       </form>
 
-      {/* Recent Orders */}
-      <div className="flex flex-col gap-3 mt-2">
+      {/* RIGHT — Recent Orders */}
+      <div className="w-[340px] shrink-0 flex flex-col gap-2 border-l border-white/10 pl-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
-            Recent Orders (UNS)
-          </h3>
-          <span className="text-xs text-gray-500">
-            {orders.length} event{orders.length !== 1 ? 's' : ''}
-          </span>
+          <span className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Recent Orders</span>
+          <span className="text-[10px] font-mono text-white/20">{orders.length}</span>
         </div>
 
         {orders.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 text-sm">
-            No orders yet — place one above or wait for incoming events.
+          <div className="flex-1 flex items-center justify-center text-white/20 text-xs font-mono">
+            NO ORDERS
           </div>
         ) : (
-          <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
+          <div className="flex-1 overflow-y-auto flex flex-col gap-0 divide-y divide-white/5">
             {orders.map((order, idx) => (
-              <OrderCard key={order.eventId || idx} event={order} />
+              <OrderRow key={order.eventId || idx} event={order} />
             ))}
           </div>
         )}
@@ -195,57 +160,34 @@ export default function MarketplaceTab() {
   );
 }
 
-function OrderCard({ event }) {
+function OrderRow({ event }) {
   const payload = event.payload || {};
   const items = payload.items || [];
   const sweetMap = Object.fromEntries(SWEETS.map((s) => [s.id, s]));
 
   return (
-    <div className="bg-[#0a2e4d] border border-[#1a4a6e] rounded-lg px-4 py-3 flex items-start gap-3">
-      <div className="w-8 h-8 rounded-full bg-[#6366F1]/20 flex items-center justify-center text-sm shrink-0">
-        📦
+    <div className="py-2 flex flex-col gap-0.5">
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-white font-medium">{payload.customerName || '—'}</span>
+        <span className="text-[10px] font-mono border border-white/20 text-white/60 px-1">
+          {payload.status?.toUpperCase() || 'PENDING'}
+        </span>
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium text-white">
-            {payload.customerName || 'Unknown'}
-          </span>
-          <StatusBadge status={payload.status} />
-        </div>
-        <div className="text-xs text-gray-400 mt-0.5">
-          {items.map((item, i) => {
-            const sweet = sweetMap[item.sweetType];
-            return (
-              <span key={i}>
-                {sweet?.emoji || '🍬'} {sweet?.name || item.sweetType} ×{item.quantity}
-                {i < items.length - 1 && ' · '}
-              </span>
-            );
-          })}
-        </div>
-        <div className="text-xs text-gray-600 mt-1 font-mono">
-          {event.timestamp ? new Date(event.timestamp).toLocaleTimeString() : '—'}
-          {event.correlationId && (
-            <span className="ml-2 text-gray-600">id:{event.correlationId.slice(0, 8)}</span>
-          )}
-        </div>
+      <div className="text-[10px] text-white/40 font-mono">
+        {items.map((item, i) => {
+          const sweet = sweetMap[item.sweetType];
+          return (
+            <span key={i}>
+              {sweet?.emoji} {sweet?.name || item.sweetType} x{item.quantity}
+              {i < items.length - 1 && ' | '}
+            </span>
+          );
+        })}
+      </div>
+      <div className="text-[10px] text-white/20 font-mono">
+        {event.correlationId && <span>{event.correlationId.slice(0, 12)}</span>}
+        {event.timestamp && <span className="ml-2">{new Date(event.timestamp).toLocaleTimeString()}</span>}
       </div>
     </div>
-  );
-}
-
-function StatusBadge({ status }) {
-  const styles = {
-    pending: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-    validated: 'bg-green-500/20 text-green-400 border-green-500/30',
-    rejected: 'bg-red-500/20 text-red-400 border-red-500/30',
-    processing: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  };
-  const cls = styles[status] || styles.pending;
-
-  return (
-    <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded border ${cls}`}>
-      {status || 'pending'}
-    </span>
   );
 }

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSolaceConnection, useAllEvents } from './broker/useSolace.js';
-import { LEVELS, TOPIC_COLORS } from './constants/theme.js';
+import { TOPIC_CATEGORIES } from './constants/theme.js';
 import { SimulationEngine } from './simulation/SimulationEngine.js';
 import MarketplaceTab from './tabs/marketplace/MarketplaceTab.jsx';
 import ErpTab from './tabs/erp/ErpTab.jsx';
@@ -9,18 +9,36 @@ import ScadaTab from './tabs/scada/ScadaTab.jsx';
 import ArmTab from './tabs/arm/ArmTab.jsx';
 
 const TABS = [
-  { key: 'marketplace', level: 5, label: 'Marketplace', component: MarketplaceTab },
-  { key: 'erp', level: 4, label: 'ERP', component: ErpTab },
-  { key: 'mes', level: 3, label: 'MES', component: MesTab },
-  { key: 'scada', level: 2, label: 'SCADA', component: ScadaTab },
-  { key: 'arm', level: 1, label: 'Arm Control', component: ArmTab },
+  { key: 'marketplace', label: 'MARKETPLACE', component: MarketplaceTab },
+  { key: 'erp', label: 'ERP', component: ErpTab },
+  { key: 'mes', label: 'MES', component: MesTab },
+  { key: 'scada', label: 'SCADA', component: ScadaTab },
+  { key: 'arm', label: 'ARM', component: ArmTab },
 ];
+
+// UNS topic tree structure
+const TOPIC_TREE = {
+  'haribot': {
+    'paris-demo': {
+      'packing': {
+        'line1': {
+          'orders': null,
+          'erp': null,
+          'mes': null,
+          'scada': null,
+          'arm': null,
+          'hitl': null,
+        }
+      }
+    }
+  }
+};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('marketplace');
   const connectionStatus = useSolaceConnection();
-  const allEvents = useAllEvents(200);
-  const [eventCounts, setEventCounts] = useState({});
+  const allEvents = useAllEvents(500);
+  const [activeFilters, setActiveFilters] = useState(new Set(TOPIC_CATEGORIES));
 
   // Start simulation engine once connected
   useEffect(() => {
@@ -31,129 +49,232 @@ export default function App() {
     }
   }, [connectionStatus]);
 
-  // Track event counts per tab category
-  useEffect(() => {
-    if (allEvents.length === 0) return;
-    const latest = allEvents[0];
-    const category = getCategoryFromTopic(latest.topic);
-    if (category) {
-      setEventCounts((prev) => ({ ...prev, [category]: (prev[category] || 0) + 1 }));
+  // Filter events by active category filters
+  const filteredEvents = useMemo(() => {
+    if (activeFilters.size === TOPIC_CATEGORIES.length) return allEvents;
+    return allEvents.filter((evt) => {
+      const category = getCategoryFromTopic(evt.topic);
+      return category && activeFilters.has(category);
+    });
+  }, [allEvents, activeFilters]);
+
+  // Track which categories have recent activity (last 5 seconds)
+  const recentActivity = useMemo(() => {
+    const now = Date.now();
+    const active = new Set();
+    for (const evt of allEvents.slice(0, 50)) {
+      if (now - (evt._receivedAt || 0) < 5000) {
+        const cat = getCategoryFromTopic(evt.topic);
+        if (cat) active.add(cat);
+      }
     }
-  }, [allEvents.length]);
+    return active;
+  }, [allEvents]);
+
+  function toggleFilter(cat) {
+    setActiveFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) {
+        next.delete(cat);
+      } else {
+        next.add(cat);
+      }
+      return next;
+    });
+  }
 
   const ActiveComponent = TABS.find((t) => t.key === activeTab)?.component;
 
   return (
-    <div className="flex flex-col h-screen bg-solace-dark">
+    <div className="flex flex-col h-screen bg-[#0a0a0a]">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-bold text-white tracking-wide">
-            <span className="text-solace-green">SOLACE</span> HARIBOT
+      <header className="flex items-center justify-between px-5 py-2 border-b border-white/10 bg-black">
+        <div className="flex items-center gap-4">
+          <h1 className="text-sm font-bold text-white tracking-widest font-mono">
+            <span className="text-[#00C895]">SOLACE</span> HARIBOT
           </h1>
-          <span className="text-xs text-white/40 font-mono">ISA-95 UNS DEMO</span>
+          <span className="text-[10px] text-white/30 font-mono tracking-wider">UNS DEMO / ISA-95</span>
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-xs font-mono text-white/50">
-            {allEvents.length > 0 ? `${allEvents.length} events` : ''}
-          </div>
+          <span className="text-[10px] font-mono text-white/30">
+            {allEvents.length > 0 && `${allEvents.length} events`}
+          </span>
           <ConnectionBadge status={connectionStatus} />
         </div>
       </header>
 
-      {/* Tab Navigation */}
-      <nav className="flex gap-1 px-4 pt-2 border-b border-white/10">
-        {TABS.map((tab) => {
-          const level = LEVELS[tab.level];
-          const isActive = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`relative flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-sm font-medium transition-all
-                ${isActive
-                  ? 'bg-white/10 text-white border-b-2'
-                  : 'text-white/50 hover:text-white/80 hover:bg-white/5'
-                }`}
-              style={{ borderBottomColor: isActive ? level.color : 'transparent' }}
-            >
-              <span className="text-base">{level.icon}</span>
-              <span>{tab.label}</span>
-              <span
-                className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
-                style={{ backgroundColor: level.color + '30', color: level.color }}
-              >
-                L{tab.level}
-              </span>
-              {eventCounts[tab.key] > 0 && !isActive && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-solace-green animate-pulse-green" />
-              )}
-            </button>
-          );
-        })}
-      </nav>
+      {/* Body: Split Layout */}
+      <div className="flex-1 flex min-h-0">
+        {/* LEFT: Tab Content (70%) */}
+        <div className="flex-[7] flex flex-col min-h-0 border-r border-white/10">
+          {/* Tab Navigation */}
+          <nav className="flex border-b border-white/10 bg-[#0a0a0a]">
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`px-5 py-2.5 text-xs font-bold tracking-wider transition-colors relative
+                    ${isActive
+                      ? 'text-white bg-white/5'
+                      : 'text-white/40 hover:text-white/70 hover:bg-white/[0.02]'
+                    }`}
+                >
+                  {tab.label}
+                  {isActive && (
+                    <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#00C895]" />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-hidden">
-        <div className="h-full animate-slide-in" key={activeTab}>
-          {ActiveComponent && <ActiveComponent />}
+          {/* Tab Content */}
+          <main className="flex-1 overflow-hidden">
+            <div className="h-full" key={activeTab}>
+              {ActiveComponent && <ActiveComponent />}
+            </div>
+          </main>
         </div>
-      </main>
 
-      {/* Event Ticker */}
-      <EventTicker events={allEvents} />
-    </div>
-  );
-}
+        {/* RIGHT: Event Feed Panel (30%) */}
+        <div className="flex-[3] flex flex-col min-h-0 bg-black">
+          {/* Panel Header */}
+          <div className="px-3 py-2 border-b border-white/10 flex items-center gap-2">
+            <div className="w-1.5 h-1.5 bg-[#00C895] animate-live" />
+            <span className="text-[10px] font-bold text-white/60 tracking-widest font-mono">UNS EVENT FEED</span>
+            <span className="text-[10px] text-white/20 font-mono ml-auto">{filteredEvents.length}</span>
+          </div>
 
-function ConnectionBadge({ status }) {
-  const colors = {
-    connected: 'bg-solace-green',
-    connecting: 'bg-yellow-400',
-    reconnecting: 'bg-yellow-400',
-    disconnected: 'bg-red-500',
-  };
-  return (
-    <div className="flex items-center gap-2">
-      <div className={`w-2 h-2 rounded-full ${colors[status] || 'bg-gray-500'} ${status === 'connected' ? 'animate-pulse-green' : ''}`} />
-      <span className="text-xs text-white/60 uppercase">{status}</span>
-    </div>
-  );
-}
+          {/* Topic Tree */}
+          <TopicTree recentActivity={recentActivity} />
 
-function EventTicker({ events }) {
-  const recent = events.slice(0, 8);
-  if (recent.length === 0) return null;
+          {/* Filter Chips */}
+          <div className="px-3 py-2 border-b border-white/10 flex flex-wrap gap-1">
+            {TOPIC_CATEGORIES.map((cat) => {
+              const isActive = activeFilters.has(cat);
+              const hasActivity = recentActivity.has(cat);
+              return (
+                <button
+                  key={cat}
+                  onClick={() => toggleFilter(cat)}
+                  className={`px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider border transition-colors
+                    ${isActive
+                      ? 'border-white/30 text-white bg-white/5'
+                      : 'border-white/10 text-white/20 bg-transparent'
+                    }`}
+                >
+                  {hasActivity && isActive && <span className="inline-block w-1 h-1 bg-[#00C895] mr-1 align-middle" />}
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
 
-  return (
-    <div className="h-7 bg-black/30 border-t border-white/10 flex items-center overflow-hidden px-4">
-      <span className="text-[10px] text-solace-green font-bold mr-3 shrink-0">UNS LIVE</span>
-      <div className="flex gap-6 overflow-hidden">
-        {recent.map((evt, i) => {
-          const shortTopic = evt.topic?.replace('haribot/paris-demo/packing/line1/', '') || '';
-          const category = shortTopic.split('/')[0];
-          const color = TOPIC_COLORS[category] || '#888';
-          return (
-            <span key={i} className="text-[10px] font-mono text-white/60 whitespace-nowrap shrink-0">
-              <span style={{ color }}>{shortTopic}</span>
-              <span className="text-white/30 ml-1">
-                {evt.correlationId ? evt.correlationId.slice(0, 6) : ''}
-              </span>
-            </span>
-          );
-        })}
+          {/* Event List */}
+          <div className="flex-1 overflow-y-auto px-3 py-1">
+            {filteredEvents.length === 0 ? (
+              <div className="text-[10px] text-white/20 font-mono py-4 text-center">
+                Waiting for events...
+              </div>
+            ) : (
+              filteredEvents.slice(0, 200).map((evt, i) => (
+                <EventRow key={evt.eventId || i} event={evt} />
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
+/* ─── Topic Tree ──────────────────────────────────────────────── */
+function TopicTree({ recentActivity }) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <div className="border-b border-white/10">
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-white/[0.02] transition-colors"
+      >
+        <span className="text-[9px] text-white/30 font-mono">{collapsed ? '▶' : '▼'}</span>
+        <span className="text-[9px] font-mono text-white/40 tracking-wider">TOPIC HIERARCHY</span>
+      </button>
+      {!collapsed && (
+        <div className="px-3 pb-2 font-mono text-[9px] leading-relaxed">
+          <div className="text-white/20">haribot/</div>
+          <div className="text-white/20 pl-2">└─ paris-demo/</div>
+          <div className="text-white/20 pl-5">└─ packing/</div>
+          <div className="text-white/20 pl-8">└─ line1/</div>
+          {TOPIC_CATEGORIES.map((cat) => {
+            const hasActivity = recentActivity.has(cat);
+            return (
+              <div key={cat} className="pl-11 flex items-center gap-1">
+                <span className="text-white/20">├─</span>
+                <span className={hasActivity ? 'text-[#00C895]' : 'text-white/30'}>
+                  {cat}/
+                </span>
+                {hasActivity && <span className="w-1 h-1 bg-[#00C895] animate-live" />}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Event Row ───────────────────────────────────────────────── */
+function EventRow({ event }) {
+  const shortTopic = event.topic?.replace('haribot/paris-demo/packing/line1/', '') || '';
+  const time = event._receivedAt
+    ? new Date(event._receivedAt).toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : '';
+
+  // Compact payload preview
+  let preview = '';
+  if (event.payload) {
+    const p = event.payload;
+    if (p.status) preview = p.status;
+    else if (p.commandType) preview = p.commandType;
+    else if (p.customerName) preview = p.customerName;
+    else preview = JSON.stringify(p).slice(0, 40);
+  } else if (event.correlationId) {
+    preview = event.correlationId.slice(0, 8);
+  }
+
+  return (
+    <div className="py-[3px] flex items-start gap-2 border-b border-white/[0.03] text-[10px] font-mono">
+      <span className="text-white/20 shrink-0 w-14">{time}</span>
+      <span className="text-white/60 truncate flex-1">{shortTopic}</span>
+      <span className="text-white/25 truncate max-w-[80px]">{preview}</span>
+    </div>
+  );
+}
+
+/* ─── Connection Badge ────────────────────────────────────────── */
+function ConnectionBadge({ status }) {
+  const isConnected = status === 'connected';
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`w-1.5 h-1.5 ${isConnected ? 'bg-[#00C895] animate-live' : 'bg-white/30'}`} />
+      <span className="text-[10px] text-white/40 uppercase font-mono tracking-wider">{status}</span>
+    </div>
+  );
+}
+
+/* ─── Helper ──────────────────────────────────────────────────── */
 function getCategoryFromTopic(topic) {
   if (!topic) return null;
   const short = topic.replace('haribot/paris-demo/packing/line1/', '');
-  if (short.startsWith('orders/')) return 'marketplace';
+  if (short.startsWith('orders/')) return 'orders';
   if (short.startsWith('erp/')) return 'erp';
   if (short.startsWith('mes/')) return 'mes';
   if (short.startsWith('scada/')) return 'scada';
-  if (short.startsWith('arm/') || short.startsWith('hitl/')) return 'arm';
+  if (short.startsWith('arm/')) return 'arm';
+  if (short.startsWith('hitl/')) return 'hitl';
   return null;
 }

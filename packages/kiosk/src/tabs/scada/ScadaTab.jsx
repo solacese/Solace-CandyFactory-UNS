@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSubscription, usePublish } from '../../broker/useSolace.js';
 import { WILDCARDS, SCADA } from '../../constants/topics.js';
 
@@ -6,53 +6,35 @@ import { WILDCARDS, SCADA } from '../../constants/topics.js';
 const SCADA_PREFIX = WILDCARDS.SCADA;
 const MAX_SPARKLINE_POINTS = 20;
 
-const STATUS_COLORS = {
-  normal: '#00C895',
-  warning: '#F59E0B',
-  alarm: '#EF4444',
-};
-
 // ─── ALARM BANNER ───────────────────────────────────────────────────────
 function AlarmBanner({ alarms, onAcknowledge }) {
   if (alarms.length === 0) return null;
 
   return (
-    <div className="bg-gradient-to-r from-red-900/40 to-red-800/20 border border-red-500/30 rounded-lg px-4 py-2 animate-pulse">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-red-400 text-sm animate-bounce">🚨</span>
-        <span className="text-[10px] text-red-300 uppercase font-bold tracking-widest">Active Alarms</span>
-        <span className="text-[10px] bg-red-500/30 text-red-200 px-1.5 rounded font-bold ml-auto">
-          {alarms.length}
-        </span>
-      </div>
-      <div className="space-y-1 max-h-[80px] overflow-y-auto">
-        {alarms.map((alarm, i) => (
-          <div key={i} className="flex items-center gap-2 text-xs">
-            <span className={`w-2 h-2 rounded-full ${alarm.severity === 'critical' ? 'bg-red-500 animate-ping' : 'bg-amber-500'}`} />
-            <span className={alarm.severity === 'critical' ? 'text-red-300' : 'text-amber-300'}>
-              {alarm.severity === 'critical' ? '🔴' : '🟡'}
-            </span>
-            <span className="text-white/80 flex-1 truncate">{alarm.message}</span>
-            <span className="text-white/30 text-[10px] font-mono">
-              {alarm.timestamp ? new Date(alarm.timestamp).toLocaleTimeString() : ''}
-            </span>
-            <button
-              onClick={() => onAcknowledge(alarm)}
-              className="px-2 py-0.5 text-[10px] font-bold uppercase bg-red-500/20 text-red-300 border border-red-500/40 rounded hover:bg-red-500/40 transition-colors"
-            >
-              ACK
-            </button>
-          </div>
-        ))}
-      </div>
+    <div className="border border-white/10 border-l-2 border-l-white bg-[#111111] px-3 py-2">
+      {alarms.map((alarm, i) => (
+        <div key={i} className="flex items-center gap-3 text-[11px] font-mono py-0.5">
+          <span className="text-white font-bold">[ALARM]</span>
+          <span className="text-white/80 flex-1 truncate">{alarm.message}</span>
+          <span className="text-white/30">
+            {alarm.timestamp ? new Date(alarm.timestamp).toLocaleTimeString('en-GB', { hour12: false }) : ''}
+          </span>
+          <button
+            onClick={() => onAcknowledge(alarm)}
+            className="px-2 py-0.5 text-[10px] uppercase border border-white/30 text-white hover:bg-white/10 transition-colors"
+          >
+            ACK
+          </button>
+        </div>
+      ))}
     </div>
   );
 }
 
 // ─── SPARKLINE ──────────────────────────────────────────────────────────
-function Sparkline({ values, color = '#00C895', width = 100, height = 30 }) {
+function Sparkline({ values, width = 100, height = 24 }) {
   if (!values || values.length < 2) {
-    return <svg width={width} height={height} className="opacity-30" />;
+    return <svg width={width} height={height} />;
   }
 
   const min = Math.min(...values);
@@ -65,218 +47,89 @@ function Sparkline({ values, color = '#00C895', width = 100, height = 30 }) {
     return `${x},${y}`;
   }).join(' ');
 
-  // Area fill
-  const areaPoints = `0,${height} ${points} ${width},${height}`;
-
   return (
     <svg width={width} height={height} className="overflow-visible">
-      <defs>
-        <linearGradient id={`grad-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={areaPoints} fill={`url(#grad-${color.replace('#', '')})`} />
       <polyline
         points={points}
         fill="none"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
+        stroke="rgba(255,255,255,0.5)"
+        strokeWidth="1"
         strokeLinejoin="round"
       />
-      {/* Current value dot */}
-      {values.length > 0 && (() => {
-        const lastX = width;
-        const lastY = height - ((values[values.length - 1] - min) / range) * (height - 4) - 2;
-        return <circle cx={lastX} cy={lastY} r="2.5" fill={color} />;
-      })()}
     </svg>
   );
 }
 
 // ─── SENSOR CARD ────────────────────────────────────────────────────────
-function SensorCard({ sensorId, sensorType, value, unit, status, history }) {
-  const color = STATUS_COLORS[status] || STATUS_COLORS.normal;
-
+function SensorCard({ sensorId, value, unit, status, history }) {
   return (
-    <div className="bg-white/[0.03] border border-white/10 rounded-lg p-3 flex flex-col gap-2 relative overflow-hidden">
-      {/* Status indicator */}
-      <div className={`absolute top-0 left-0 w-full h-0.5`} style={{ backgroundColor: color }} />
+    <div className="border border-white/10 bg-[#111111] p-2 flex flex-col gap-1">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-mono text-white/40 uppercase">{sensorId}</span>
-          <span
-            className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: color, boxShadow: status !== 'normal' ? `0 0 6px ${color}` : 'none' }}
-          />
-        </div>
-        <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${
-          status === 'normal' ? 'bg-emerald-500/10 text-emerald-400' :
-          status === 'warning' ? 'bg-amber-500/10 text-amber-400' :
-          'bg-red-500/10 text-red-400'
+        <span className="text-[10px] font-mono text-white/40">{sensorId}</span>
+        <span className={`text-[9px] font-mono uppercase px-1 border ${
+          status === 'normal' ? 'border-white/10 text-white/40' :
+          status === 'warning' ? 'border-white/30 text-white/70' :
+          'border-white text-white'
         }`}>
           {status}
         </span>
       </div>
       <div className="flex items-baseline gap-1">
-        <span className="text-2xl font-bold text-white">{typeof value === 'number' ? value.toFixed(1) : value}</span>
-        <span className="text-xs text-white/40">{unit}</span>
+        <span className="text-xl font-mono text-white">{typeof value === 'number' ? value.toFixed(1) : value}</span>
+        <span className="text-[10px] font-mono text-white/30">{unit}</span>
       </div>
-      <div className="text-[9px] text-white/30 uppercase">{sensorType}</div>
-      <Sparkline values={history} color={color} width={120} height={24} />
+      <Sparkline values={history} width={120} height={20} />
     </div>
   );
 }
 
-// ─── PROCESS DIAGRAM (SVG) ──────────────────────────────────────────────
-function ProcessDiagram({ processValues }) {
-  const sections = [
-    { id: 'hopper', label: 'Hopper', x: 20, width: 80 },
-    { id: 'conveyorA', label: 'Conv. A', x: 130, width: 100 },
-    { id: 'pickZone', label: 'Pick Zone', x: 260, width: 90 },
-    { id: 'conveyorB', label: 'Conv. B', x: 380, width: 100 },
-    { id: 'packing', label: 'Packing', x: 510, width: 80 },
+// ─── PROCESS FLOW (TEXT) ────────────────────────────────────────────────
+function ProcessFlow({ processValues }) {
+  const stages = [
+    { id: 'hopper', label: 'HOPPER' },
+    { id: 'conveyorA', label: 'CONV-A' },
+    { id: 'pickZone', label: 'PICK' },
+    { id: 'conveyorB', label: 'CONV-B' },
+    { id: 'packing', label: 'PACK' },
   ];
 
   return (
-    <div className="relative">
-      <svg viewBox="0 0 620 100" className="w-full h-auto" style={{ maxHeight: '110px' }}>
-        {/* Background */}
-        <rect x="0" y="0" width="620" height="100" fill="transparent" />
-
-        {/* Connection pipes */}
-        {sections.slice(0, -1).map((sec, i) => {
-          const next = sections[i + 1];
-          return (
-            <line
-              key={`pipe-${i}`}
-              x1={sec.x + sec.width}
-              y1={45}
-              x2={next.x}
-              y2={45}
-              stroke="rgba(255,255,255,0.15)"
-              strokeWidth="3"
-              strokeDasharray="6 4"
-            />
-          );
-        })}
-
-        {/* Flow arrows */}
-        {sections.slice(0, -1).map((sec, i) => {
-          const midX = sec.x + sec.width + (sections[i + 1].x - sec.x - sec.width) / 2;
-          return (
-            <polygon
-              key={`arrow-${i}`}
-              points={`${midX - 4},41 ${midX + 4},45 ${midX - 4},49`}
-              fill="#00C895"
-              opacity="0.6"
-            />
-          );
-        })}
-
-        {/* Sections */}
-        {sections.map((sec) => {
-          const pv = processValues[sec.id];
-          return (
-            <g key={sec.id}>
-              <rect
-                x={sec.x}
-                y={25}
-                width={sec.width}
-                height={40}
-                rx="4"
-                fill="rgba(0,200,149,0.06)"
-                stroke="rgba(0,200,149,0.3)"
-                strokeWidth="1"
-              />
-              <text x={sec.x + sec.width / 2} y={40} textAnchor="middle" fill="rgba(255,255,255,0.8)" fontSize="10" fontWeight="bold">
-                {sec.label}
-              </text>
-              {pv && (
-                <text x={sec.x + sec.width / 2} y={56} textAnchor="middle" fill="#00C895" fontSize="9" fontFamily="monospace">
-                  {pv}
-                </text>
-              )}
-            </g>
-          );
-        })}
-
-        {/* Labels */}
-        <text x="310" y="90" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="8" letterSpacing="3">
-          PROCESS FLOW
-        </text>
-      </svg>
+    <div className="border border-white/10 bg-[#111111] p-3">
+      <div className="text-[10px] text-white/40 uppercase tracking-wider mb-2">Process Flow</div>
+      <div className="flex items-center justify-between font-mono text-xs">
+        {stages.map((stage, i) => (
+          <div key={stage.id} className="flex items-center">
+            <div className="flex flex-col items-center">
+              <span className="text-white/70">{stage.label}</span>
+              <span className="text-[10px] text-white/30 mt-0.5">{processValues[stage.id] || '—'}</span>
+            </div>
+            {i < stages.length - 1 && (
+              <span className="text-white/20 mx-2">→</span>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-// ─── ANIMATED CONVEYOR ──────────────────────────────────────────────────
-function ConveyorBelt({ speed, itemsInTransit, itemsProcessed }) {
-  const [offset, setOffset] = useState(0);
-  const rafRef = useRef(null);
-
-  useEffect(() => {
-    let lastTime = performance.now();
-    const animate = (now) => {
-      const dt = now - lastTime;
-      lastTime = now;
-      setOffset((prev) => (prev + (speed * dt) / 1000) % 40);
-      rafRef.current = requestAnimationFrame(animate);
-    };
-    rafRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [speed]);
-
-  const dots = [];
-  for (let i = 0; i < 16; i++) {
-    const x = ((i * 40 + offset) % 640);
-    dots.push(
-      <circle
-        key={i}
-        cx={x}
-        cy="12"
-        r="4"
-        fill={i < itemsInTransit ? '#00C895' : 'rgba(255,255,255,0.1)'}
-        className="transition-all duration-200"
-      />
-    );
-  }
-
+// ─── CONVEYOR METRICS ───────────────────────────────────────────────────
+function ConveyorMetrics({ speed, itemsInTransit, itemsProcessed }) {
   return (
-    <div className="bg-white/[0.02] border border-white/10 rounded-lg p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-1.5 h-4 rounded-full bg-red-500" />
-        <span className="text-[10px] text-white/50 uppercase tracking-wider font-bold">Conveyor System</span>
+    <div className="flex gap-0">
+      <div className="flex-1 border border-white/10 px-3 py-2">
+        <div className="text-[9px] text-white/30 uppercase tracking-wider">Speed</div>
+        <span className="text-lg font-mono text-white">{speed.toFixed(1)}</span>
+        <span className="text-[10px] font-mono text-white/30 ml-1">m/s</span>
       </div>
-      {/* Animated belt */}
-      <div className="bg-black/30 rounded-lg p-2 mb-3 overflow-hidden">
-        <svg viewBox="0 0 640 24" className="w-full h-6">
-          {/* Belt tracks */}
-          <rect x="0" y="8" width="640" height="8" rx="4" fill="rgba(255,255,255,0.05)" />
-          <rect x="0" y="10" width="640" height="4" rx="2" fill="rgba(255,255,255,0.03)" />
-          {/* Moving dots */}
-          {dots}
-          {/* End caps */}
-          <circle cx="10" cy="12" r="8" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
-          <circle cx="630" cy="12" r="8" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
-        </svg>
+      <div className="flex-1 border border-white/10 px-3 py-2">
+        <div className="text-[9px] text-white/30 uppercase tracking-wider">In Transit</div>
+        <span className="text-lg font-mono text-white">{itemsInTransit}</span>
       </div>
-      {/* Stats */}
-      <div className="flex gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-white/40">Speed:</span>
-          <span className="text-sm font-mono font-bold text-white">{speed.toFixed(1)}</span>
-          <span className="text-[10px] text-white/30">m/s</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-white/40">In Transit:</span>
-          <span className="text-sm font-mono font-bold text-cyan-400">{itemsInTransit}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-white/40">Processed Today:</span>
-          <span className="text-sm font-mono font-bold text-emerald-400">{itemsProcessed.toLocaleString()}</span>
-        </div>
+      <div className="flex-1 border border-white/10 px-3 py-2">
+        <div className="text-[9px] text-white/30 uppercase tracking-wider">Throughput</div>
+        <span className="text-lg font-mono text-white">{itemsProcessed.toLocaleString()}</span>
+        <span className="text-[10px] font-mono text-white/30 ml-1">today</span>
       </div>
     </div>
   );
@@ -287,7 +140,6 @@ export default function ScadaTab() {
   const events = useSubscription(SCADA_PREFIX);
   const publish = usePublish();
 
-  // ─── State ────────────────────────────────────────────────────
   const [alarms, setAlarms] = useState([]);
   const [sensors, setSensors] = useState({
     'TEMP-01': { sensorId: 'TEMP-01', sensorType: 'Temperature', value: 72.4, unit: '°C', status: 'normal', history: [71, 71.5, 72, 72.2, 72.4] },
@@ -301,14 +153,14 @@ export default function ScadaTab() {
   const [itemsInTransit, setItemsInTransit] = useState(5);
   const [itemsProcessed, setItemsProcessed] = useState(2847);
   const [processValues, setProcessValues] = useState({
-    hopper: '85% full',
+    hopper: '85%',
     conveyorA: '1.2 m/s',
     pickZone: '72.4°C',
     conveyorB: '1.2 m/s',
     packing: '142 u/hr',
   });
 
-  // ─── Process events ───────────────────────────────────────────
+  // Process events
   useEffect(() => {
     if (events.length === 0) return;
     const latest = events[0];
@@ -351,7 +203,7 @@ export default function ScadaTab() {
     }
   }, [events.length]);
 
-  // ─── ACK handler ──────────────────────────────────────────────
+  // ACK handler
   const handleAcknowledge = useCallback((alarm) => {
     publish(SCADA.ALARM_ACKNOWLEDGED, {
       alarmCode: alarm.alarmCode,
@@ -363,37 +215,28 @@ export default function ScadaTab() {
   const sensorList = Object.values(sensors);
 
   return (
-    <div className="h-full p-5 overflow-y-auto flex flex-col gap-4">
-      {/* ─── ALARM BANNER ─────────────────────────────────── */}
+    <div className="h-full p-3 overflow-y-auto flex flex-col gap-2 bg-[#0a0a0a]">
+      {/* Alarm Banner */}
       <AlarmBanner alarms={alarms} onAcknowledge={handleAcknowledge} />
 
-      {/* ─── PROCESS DIAGRAM ──────────────────────────────── */}
-      <div className="bg-white/[0.02] border border-white/10 rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-1.5 h-4 rounded-full bg-red-500" />
-          <span className="text-xs text-white/50 uppercase tracking-wider font-bold">Process Overview</span>
-          <span className="text-[10px] text-white/20 ml-auto font-mono">LIVE</span>
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-        </div>
-        <ProcessDiagram processValues={processValues} />
+      {/* Sensor Grid */}
+      <div className="grid grid-cols-3 gap-2">
+        {sensorList.slice(0, 6).map((sensor) => (
+          <SensorCard key={sensor.sensorId} {...sensor} />
+        ))}
       </div>
 
-      {/* ─── SENSOR GRID ──────────────────────────────────── */}
-      <div className="bg-white/[0.02] border border-white/10 rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-1.5 h-4 rounded-full bg-red-500" />
-          <span className="text-xs text-white/50 uppercase tracking-wider font-bold">Sensor Array</span>
-          <span className="text-[10px] text-white/30 ml-auto">{sensorList.length} sensors</span>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          {sensorList.slice(0, 6).map((sensor) => (
-            <SensorCard key={sensor.sensorId} {...sensor} />
-          ))}
-        </div>
-      </div>
+      {/* Process Flow */}
+      <ProcessFlow processValues={processValues} />
 
-      {/* ─── CONVEYOR BELT ────────────────────────────────── */}
-      <ConveyorBelt speed={conveyorSpeed} itemsInTransit={itemsInTransit} itemsProcessed={itemsProcessed} />
+      {/* Conveyor Metrics */}
+      <ConveyorMetrics speed={conveyorSpeed} itemsInTransit={itemsInTransit} itemsProcessed={itemsProcessed} />
+
+      {/* Live indicator */}
+      <div className="flex items-center gap-2 px-1">
+        <div className="w-1.5 h-1.5 bg-[#00C895] animate-pulse" />
+        <span className="text-[10px] font-mono text-white/30">LIVE — {events.length} events captured</span>
+      </div>
     </div>
   );
 }

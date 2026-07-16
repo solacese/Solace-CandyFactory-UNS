@@ -1,30 +1,21 @@
 @import "tailwindcss";
 
 @theme {
-  --color-solace-dark: #03213B;
-  --color-solace-green: #00C895;
-  --color-solace-blue: #0054A6;
-  --color-solace-light: #F0F4F8;
-
-  --color-level-5: #6366F1;
-  --color-level-4: #8B5CF6;
-  --color-level-3: #F59E0B;
-  --color-level-2: #EF4444;
-  --color-level-1: #10B981;
-
-  --color-alarm-red: #EF4444;
-  --color-alarm-amber: #F59E0B;
-  --color-success: #10B981;
-  --color-info: #3B82F6;
+  --color-terminal-bg: #0a0a0a;
+  --color-terminal-surface: #111111;
+  --color-terminal-border: rgba(255,255,255,0.1);
+  --color-accent: #00C895;
+  --color-accent-dim: rgba(0,200,149,0.15);
 }
 
 * {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  border-radius: 0 !important;
 }
 
 body {
   margin: 0;
-  background: var(--color-solace-dark);
+  background: #0a0a0a;
   color: #ffffff;
   overflow: hidden;
   height: 100vh;
@@ -37,26 +28,24 @@ body {
 }
 
 /* Scrollbar styling */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
 
-/* Animations */
-@keyframes pulse-green {
+/* Monospace for data */
+.font-mono {
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+}
+
+/* Remove all border-radius globally */
+*, *::before, *::after {
+  border-radius: 0 !important;
+}
+
+/* Single animation: subtle opacity */
+@keyframes pulse-live {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  50% { opacity: 0.4; }
 }
 
-@keyframes slide-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes ticker-scroll {
-  from { transform: translateX(100%); }
-  to { transform: translateX(-100%); }
-}
-
-.animate-pulse-green { animation: pulse-green 2s ease-in-out infinite; }
-.animate-slide-in { animation: slide-in 0.2s ease-out; }
-.animate-ticker { animation: ticker-scroll 30s linear infinite; }
+.animate-live { animation: pulse-live 2s ease-in-out infinite; }
