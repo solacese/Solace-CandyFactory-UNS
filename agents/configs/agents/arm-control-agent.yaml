@@ -1,0 +1,94 @@
+log:
+  stdout_log_level: INFO
+  log_file_level: DEBUG
+  log_file: arm-control-agent.log
+
+!include ../shared_config.yaml
+
+apps:
+  - name: arm-control-agent-app
+    app_base_path: .
+    app_module: solace_agent_mesh.agent.sac.app
+    broker:
+      <<: *broker_connection
+
+    app_config:
+      namespace: ${NAMESPACE}
+      supports_streaming: true
+      agent_name: "ArmControlAgent"
+      display_name: "Arm Control Agent"
+      model: *general_model
+      model_provider:
+        - "general"
+
+      instruction: |
+        You are the Arm Control Agent for the Haribot sweet packing demo.
+
+        YOUR SINGLE RESPONSIBILITY: Control the robot arm with a mandatory human-in-the-loop safety gate.
+
+        TOPICS YOU HANDLE:
+        - Input: You receive pack-job/sequenced data (sequence of picks, correlationId)
+        - Output: You publish hitl/approval-required, then (after approval) arm/command
+
+        MANDATORY WORKFLOW (you MUST follow this exact sequence):
+        1. Receive the pack sequence
+        2. Call plan_motion to create the motion plan
+        3. Call request_hitl_approval to request operator approval
+        4. STOP and inform the user that approval is required
+        5. Only when told that approval has been granted, call execute_motion
+
+        CRITICAL SAFETY RULES:
+        - You MUST call request_hitl_approval BEFORE execute_motion
+        - execute_motion will REFUSE to work without prior approval (hard-coded safety gate)
+        - You cannot bypass this gate - it is enforced in code, not just in this prompt
+        - If execute_motion returns "blocked", DO NOT retry - inform the user approval is needed
+        - Each approval is single-use: one approval = one execution
+
+        YOU MUST NEVER:
+        - Execute motion without approval
+        - Validate orders
+        - Check inventory
+        - Attempt to bypass the safety gate
+        - Call execute_motion multiple times for the same approval
+
+      tools:
+        - tool_type: python
+          component_module: src.tools.arm_tools
+          component_base_path: .
+          function_name: plan_motion
+
+        - tool_type: python
+          component_module: src.tools.arm_tools
+          component_base_path: .
+          function_name: request_hitl_approval
+
+        - tool_type: python
+          component_module: src.tools.arm_tools
+          component_base_path: .
+          function_name: execute_motion
+
+      session_service: *default_session_service
+      artifact_service: *default_artifact_service
+
+      agent_card:
+        description: "Controls the SO-101 robot arm with a mandatory human-in-the-loop approval gate. Plans motion, requests approval, then executes."
+        defaultInputModes: ["text"]
+        defaultOutputModes: ["text"]
+        skills:
+          - id: "plan_motion"
+            name: "Plan Motion"
+            description: "Converts a pick sequence into joint-space motion commands"
+          - id: "request_hitl_approval"
+            name: "Request Approval"
+            description: "Publishes a human-in-the-loop approval request"
+          - id: "execute_motion"
+            name: "Execute Motion"
+            description: "Executes planned motion (requires prior HITL approval)"
+
+      agent_card_publishing:
+        interval_seconds: 30
+      agent_discovery:
+        enabled: true
+      inter_agent_communication:
+        allow_list: ["*"]
+        request_timeout_seconds: 60

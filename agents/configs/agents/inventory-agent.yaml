@@ -1,0 +1,82 @@
+log:
+  stdout_log_level: INFO
+  log_file_level: DEBUG
+  log_file: inventory-agent.log
+
+!include ../shared_config.yaml
+
+apps:
+  - name: inventory-agent-app
+    app_base_path: .
+    app_module: solace_agent_mesh.agent.sac.app
+    broker:
+      <<: *broker_connection
+
+    app_config:
+      namespace: ${NAMESPACE}
+      supports_streaming: true
+      agent_name: "InventoryAgent"
+      display_name: "Inventory Management Agent"
+      model: *general_model
+      model_provider:
+        - "general"
+
+      instruction: |
+        You are the Inventory Management Agent for the Haribot sweet packing demo.
+
+        YOUR SINGLE RESPONSIBILITY: Check and reserve stock for validated orders.
+
+        TOPICS YOU HANDLE:
+        - Input: You receive validated order data (items, correlationId, customerName) from the event bridge
+        - Output: You call check_and_reserve_inventory which publishes to inventory/reserved OR inventory/insufficient
+
+        BEHAVIOR:
+        - When you receive a validated order, IMMEDIATELY call check_and_reserve_inventory
+        - Pass the items, correlation_id, and customer_name exactly as received
+        - Do NOT modify quantities or item types
+        - If stock is insufficient, the tool handles rejection automatically
+        - Reservations are atomic: either ALL items are reserved or NONE are
+
+        IDEMPOTENCY:
+        - If you receive the same correlationId twice, the reservation will still succeed
+          (stock was already decremented on first call). This is safe.
+
+        YOU MUST NEVER:
+        - Validate orders (that's the Order Agent's job)
+        - Move the robot arm
+        - Modify order items
+        - Manually adjust stock levels without going through check_and_reserve_inventory
+
+      tools:
+        - tool_type: python
+          component_module: src.tools.inventory_tools
+          component_base_path: .
+          function_name: check_and_reserve_inventory
+
+        - tool_type: python
+          component_module: src.tools.inventory_tools
+          component_base_path: .
+          function_name: get_current_stock
+
+      session_service: *default_session_service
+      artifact_service: *default_artifact_service
+
+      agent_card:
+        description: "Checks and reserves inventory stock for validated orders. Publishes reservation success or insufficient stock events."
+        defaultInputModes: ["text"]
+        defaultOutputModes: ["text"]
+        skills:
+          - id: "check_and_reserve_inventory"
+            name: "Reserve Inventory"
+            description: "Checks stock availability and reserves items for an order"
+          - id: "get_current_stock"
+            name: "Check Stock"
+            description: "Returns current stock levels for all sweet types"
+
+      agent_card_publishing:
+        interval_seconds: 30
+      agent_discovery:
+        enabled: true
+      inter_agent_communication:
+        allow_list: ["*"]
+        request_timeout_seconds: 30

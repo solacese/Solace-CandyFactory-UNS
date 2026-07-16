@@ -1,0 +1,13 @@
+{
+  "name": "@haribot/broker-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.mjs"
+  },
+  "dependencies": {
+    "solclientjs": "^10.18.3",
+    "dotenv": "^16.4.0"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "haribot-uns-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Solace UNS + SAM + Robotics Demo",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test:harness": "node packages/test-harness/src/index.mjs",
+    "backend": "npm run dev --workspace=@haribot/backend",
+    "ordering": "npm run dev --workspace=@haribot/ordering-page",
+    "dashboard": "npm run dev --workspace=@haribot/dashboard",
+    "arm": "npm run dev --workspace=@haribot/arm-driver",
+    "generate-qr": "npm run generate-qr --workspace=@haribot/ordering-page",
+    "demo": "echo 'Start each service in a separate terminal:' && echo '  npm run backend     (port 3001)' && echo '  npm run ordering    (port 3000)' && echo '  npm run dashboard   (port 3002)' && echo '  npm run arm         (arm driver)' && echo '  cd agents && source .venv/bin/activate && sam run' && echo '  cd agents && source .venv/bin/activate && python -m src.event_bridge'"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

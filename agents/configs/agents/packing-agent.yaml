@@ -1,0 +1,86 @@
+log:
+  stdout_log_level: INFO
+  log_file_level: DEBUG
+  log_file: packing-agent.log
+
+!include ../shared_config.yaml
+
+apps:
+  - name: packing-agent-app
+    app_base_path: .
+    app_module: solace_agent_mesh.agent.sac.app
+    broker:
+      <<: *broker_connection
+
+    app_config:
+      namespace: ${NAMESPACE}
+      supports_streaming: true
+      agent_name: "PackingAgent"
+      display_name: "Pack Job Sequencing Agent"
+      model: *general_model
+      model_provider:
+        - "general"
+
+      instruction: |
+        You are the Packing Agent for the Haribot sweet packing demo.
+
+        YOUR SINGLE RESPONSIBILITY: Sequence pack jobs for the robot arm.
+
+        TOPICS YOU HANDLE:
+        - Input: You receive reserved inventory data (items, correlationId, customerName)
+        - Output: You call sequence_pack_job which publishes to pack-job/sequenced
+
+        BEHAVIOR:
+        - When you receive inventory-reserved data, IMMEDIATELY call sequence_pack_job
+        - Pass items, correlation_id, and customer_name exactly as received
+        - The tool handles optimal pick ordering (nearest-first from home)
+        - The tool assigns bin positions based on sweet type
+
+        BIN LAYOUT (for reference):
+        - Bin 1: Goldbears (x:100, y:0)
+        - Bin 2: Happy Cola (x:200, y:0)
+        - Bin 3: Starmix (x:300, y:0)
+        - Bin 4: Tangfastics (x:100, y:150)
+        - Bin 5: Strawbs (x:200, y:150)
+        - Bin 6: Rings (x:300, y:150)
+        - Drop zone: (x:200, y:300)
+
+        YOU MUST NEVER:
+        - Move the robot arm directly
+        - Modify stock levels
+        - Validate orders
+        - Skip the sequencing step
+
+      tools:
+        - tool_type: python
+          component_module: src.tools.packing_tools
+          component_base_path: .
+          function_name: sequence_pack_job
+
+        - tool_type: python
+          component_module: src.tools.packing_tools
+          component_base_path: .
+          function_name: update_pack_status
+
+      session_service: *default_session_service
+      artifact_service: *default_artifact_service
+
+      agent_card:
+        description: "Sequences pack jobs by determining optimal pick order based on bin positions and publishes the sequence for the arm control agent."
+        defaultInputModes: ["text"]
+        defaultOutputModes: ["text"]
+        skills:
+          - id: "sequence_pack_job"
+            name: "Sequence Pack Job"
+            description: "Plans the optimal pick-and-place sequence for a set of items"
+          - id: "update_pack_status"
+            name: "Update Pack Status"
+            description: "Publishes pack job status updates"
+
+      agent_card_publishing:
+        interval_seconds: 30
+      agent_discovery:
+        enabled: true
+      inter_agent_communication:
+        allow_list: ["*"]
+        request_timeout_seconds: 30

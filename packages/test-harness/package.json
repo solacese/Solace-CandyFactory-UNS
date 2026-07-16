@@ -1,0 +1,16 @@
+{
+  "name": "@haribot/test-harness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "pub": "node src/publish-order.mjs",
+    "sub": "node src/subscribe-all.mjs",
+    "test": "node src/index.mjs"
+  },
+  "dependencies": {
+    "@haribot/common": "*",
+    "@haribot/broker-client": "*",
+    "dotenv": "^16.4.0"
+  }
+}

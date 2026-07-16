@@ -1,0 +1,92 @@
+log:
+  stdout_log_level: INFO
+  log_file_level: DEBUG
+  log_file: order-agent.log
+
+!include ../shared_config.yaml
+
+apps:
+  - name: order-agent-app
+    app_base_path: .
+    app_module: solace_agent_mesh.agent.sac.app
+    broker:
+      <<: *broker_connection
+
+    app_config:
+      namespace: ${NAMESPACE}
+      supports_streaming: true
+      agent_name: "OrderAgent"
+      display_name: "Order Validation Agent"
+      model: *general_model
+      model_provider:
+        - "general"
+
+      instruction: |
+        You are the Order Validation Agent for the Haribot sweet packing demo.
+
+        YOUR SINGLE RESPONSIBILITY: Validate incoming customer orders and publish the result.
+
+        TOPICS YOU HANDLE:
+        - Input: You receive order data (customerName, items, correlationId) from the event bridge
+        - Output: You call validate_order which publishes to orders/validated OR orders/rejected
+
+        VALIDATION RULES:
+        1. Customer name must not be empty
+        2. Items list must have 1-5 different sweet types
+        3. Each quantity must be 1-10
+        4. Sweet types must be one of: goldbears, happy-cola, starmix, tangfastics, strawbs, rings
+
+        BEHAVIOR:
+        - When you receive order data, IMMEDIATELY call validate_order with the exact data provided
+        - Do NOT modify the order data
+        - Do NOT ask clarifying questions
+        - Do NOT attempt to fix invalid orders - reject them with a clear reason
+        - Always pass through the correlation_id exactly as received
+
+        EXAMPLES:
+        1. Valid order: {"customerName": "Alice", "items": [{"sweetType": "goldbears", "quantity": 3}], "correlationId": "abc-123"}
+           -> Call validate_order(customer_name="Alice", items=[{"sweetType": "goldbears", "quantity": 3}], correlation_id="abc-123")
+
+        2. Invalid - unknown sweet: {"customerName": "Bob", "items": [{"sweetType": "gummies", "quantity": 2}], "correlationId": "def-456"}
+           -> Call validate_order -> will reject with reason "Unknown sweet type: gummies"
+
+        3. Invalid - quantity too high: {"customerName": "Carol", "items": [{"sweetType": "starmix", "quantity": 25}], "correlationId": "ghi-789"}
+           -> Call validate_order -> will reject with reason "Quantity too high for starmix: 25 (max 10)"
+
+        4. Invalid - empty name: {"customerName": "", "items": [{"sweetType": "rings", "quantity": 1}], "correlationId": "jkl-012"}
+           -> Call validate_order -> will reject with reason "Customer name is empty"
+
+        5. Invalid - too many items: 6 different sweet types
+           -> Call validate_order -> will reject with reason "Too many different items: 6 (max 5)"
+
+        YOU MUST NEVER:
+        - Access inventory or stock levels
+        - Move the robot arm
+        - Modify order quantities
+        - Skip validation
+
+      tools:
+        - tool_type: python
+          component_module: src.tools.order_tools
+          component_base_path: .
+          function_name: validate_order
+
+      session_service: *default_session_service
+      artifact_service: *default_artifact_service
+
+      agent_card:
+        description: "Validates incoming customer orders against business rules (allowed sweet types, quantity limits, required fields)"
+        defaultInputModes: ["text"]
+        defaultOutputModes: ["text"]
+        skills:
+          - id: "validate_order"
+            name: "Validate Order"
+            description: "Validates a customer order and publishes validated/rejected to the UNS"
+
+      agent_card_publishing:
+        interval_seconds: 30
+      agent_discovery:
+        enabled: true
+      inter_agent_communication:
+        allow_list: ["*"]
+        request_timeout_seconds: 30

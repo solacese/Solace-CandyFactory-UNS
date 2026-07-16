@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+__pycache__/
+*.pyc
+agents/.venv/
+agents/src/db/inventory.db
+.claude/

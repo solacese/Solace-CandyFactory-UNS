@@ -1,0 +1,15 @@
+{
+  "name": "@haribot/arm-driver",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.mjs",
+    "dev": "node --watch src/index.mjs"
+  },
+  "dependencies": {
+    "@haribot/common": "*",
+    "@haribot/broker-client": "*",
+    "dotenv": "^16.4.0"
+  }
+}
