@@ -1,160 +1,358 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSubscription, usePublish } from '../../broker/useSolace.js';
 import { MARKETPLACE, WILDCARDS } from '../../constants/topics.js';
 import { SWEETS } from '../../constants/demo-data.js';
+
+// ─── Chatbot Flow Definition ─────────────────────────────────────────
+// Scripted decision tree — no LLM needed. Instant, reliable, impressive.
+
+const EVENT_TYPES = [
+  { id: 'wedding', label: 'Wedding', icon: '💒' },
+  { id: 'party', label: 'Party', icon: '🎉' },
+  { id: 'birthday', label: 'Birthday', icon: '🎂' },
+  { id: 'corporate', label: 'Corporate Event', icon: '🏢' },
+];
+
+const COLOR_THEMES = [
+  { id: 'gold', label: 'Gold & Classic', sweets: ['goldbears', 'happy-cola'] },
+  { id: 'colorful', label: 'Bright & Colorful', sweets: ['starmix', 'tangfastics'] },
+  { id: 'mixed', label: 'A bit of everything', sweets: ['goldbears', 'happy-cola', 'starmix', 'tangfastics'] },
+];
+
+function computeBasket(eventType, guestCount, colorTheme) {
+  const theme = COLOR_THEMES.find((c) => c.id === colorTheme) || COLOR_THEMES[2];
+  const perSweet = Math.max(1, Math.min(10, Math.ceil(guestCount / theme.sweets.length / 5)));
+  return theme.sweets.map((sweetId) => ({
+    sweetType: sweetId,
+    quantity: perSweet,
+  }));
+}
+
+const STEPS = {
+  GREETING: 'greeting',
+  EVENT_TYPE: 'event_type',
+  GUESTS: 'guests',
+  COLORS: 'colors',
+  NAME: 'name',
+  EMAIL: 'email',
+  CONFIRM: 'confirm',
+  DONE: 'done',
+};
+
+function getGreeting() {
+  return "Hello! I'm your Solace Sweets assistant. I'll help you put together the perfect sweet selection for your event. What kind of event are you planning?";
+}
+
+function getGuestsPrompt(eventType) {
+  const evt = EVENT_TYPES.find((e) => e.id === eventType);
+  return `Great choice! A ${evt?.label.toLowerCase() || 'event'} sounds wonderful. How many guests are you expecting?`;
+}
+
+function getColorsPrompt() {
+  return "What vibe are you going for with the sweets?";
+}
+
+function getNamePrompt() {
+  return "Perfect! I've prepared a selection for you. What's your name for the order?";
+}
+
+function getEmailPrompt() {
+  return "And your professional email address?";
+}
+
+function getConfirmPrompt(basket) {
+  const sweetMap = Object.fromEntries(SWEETS.map((s) => [s.id, s]));
+  const lines = basket.map((item) => {
+    const sweet = sweetMap[item.sweetType];
+    return `  ${sweet?.emoji || '•'} ${sweet?.name || item.sweetType} × ${item.quantity}`;
+  });
+  return `Here's your basket:\n\n${lines.join('\n')}\n\nShall I place this order?`;
+}
+
+// ─── Component ───────────────────────────────────────────────────────
 
 export default function MarketplaceTab() {
   const publish = usePublish();
   const orders = useSubscription(WILDCARDS.ORDERS);
 
-  const [customerName, setCustomerName] = useState('');
-  const [email, setEmail] = useState('');
-  const [quantities, setQuantities] = useState(
-    Object.fromEntries(SWEETS.map((s) => [s.id, 0]))
-  );
-  const [submitting, setSubmitting] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [step, setStep] = useState(STEPS.GREETING);
+  const [input, setInput] = useState('');
+  const [choices, setChoices] = useState(null); // current choice buttons
+  const [orderData, setOrderData] = useState({
+    eventType: null,
+    guests: null,
+    colorTheme: null,
+    name: '',
+    email: '',
+    basket: [],
+  });
 
-  const totalItems = Object.values(quantities).reduce((a, b) => a + b, 0);
+  const chatEndRef = useRef(null);
+  const inputRef = useRef(null);
 
-  function adjustQty(id, delta) {
-    setQuantities((prev) => ({
-      ...prev,
-      [id]: Math.max(0, Math.min(10, prev[id] + delta)),
-    }));
+  // Auto-scroll to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Start conversation on mount
+  useEffect(() => {
+    addBotMessage(getGreeting());
+    setChoices(EVENT_TYPES.map((e) => ({ id: e.id, label: `${e.icon} ${e.label}` })));
+    setStep(STEPS.EVENT_TYPE);
+  }, []);
+
+  function addBotMessage(text) {
+    setMessages((prev) => [...prev, { role: 'bot', text, time: new Date() }]);
   }
 
-  function handlePlaceOrder(e) {
+  function addUserMessage(text) {
+    setMessages((prev) => [...prev, { role: 'user', text, time: new Date() }]);
+  }
+
+  function handleChoice(choice) {
+    addUserMessage(choice.label);
+    setChoices(null);
+
+    switch (step) {
+      case STEPS.EVENT_TYPE: {
+        setOrderData((prev) => ({ ...prev, eventType: choice.id }));
+        setTimeout(() => {
+          addBotMessage(getGuestsPrompt(choice.id));
+          setStep(STEPS.GUESTS);
+          inputRef.current?.focus();
+        }, 300);
+        break;
+      }
+      case STEPS.COLORS: {
+        setOrderData((prev) => {
+          const basket = computeBasket(prev.eventType, prev.guests, choice.id);
+          return { ...prev, colorTheme: choice.id, basket };
+        });
+        setTimeout(() => {
+          addBotMessage(getNamePrompt());
+          setStep(STEPS.NAME);
+          inputRef.current?.focus();
+        }, 300);
+        break;
+      }
+      case STEPS.CONFIRM: {
+        if (choice.id === 'yes') {
+          placeOrder();
+        } else {
+          resetChat();
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  function handleSubmitInput(e) {
     e.preventDefault();
-    if (!customerName.trim() || !email.trim() || totalItems === 0) return;
+    const value = input.trim();
+    if (!value) return;
 
-    const items = Object.entries(quantities)
-      .filter(([, qty]) => qty > 0)
-      .map(([sweetType, quantity]) => ({ sweetType, quantity }));
+    addUserMessage(value);
+    setInput('');
 
+    switch (step) {
+      case STEPS.GUESTS: {
+        const count = parseInt(value, 10);
+        if (isNaN(count) || count < 1) {
+          setTimeout(() => addBotMessage("Please enter a valid number of guests."), 200);
+          return;
+        }
+        setOrderData((prev) => ({ ...prev, guests: Math.min(count, 500) }));
+        setTimeout(() => {
+          addBotMessage(getColorsPrompt());
+          setChoices(COLOR_THEMES.map((c) => ({ id: c.id, label: c.label })));
+          setStep(STEPS.COLORS);
+        }, 300);
+        break;
+      }
+      case STEPS.NAME: {
+        setOrderData((prev) => ({ ...prev, name: value }));
+        setTimeout(() => {
+          addBotMessage(getEmailPrompt());
+          setStep(STEPS.EMAIL);
+          inputRef.current?.focus();
+        }, 300);
+        break;
+      }
+      case STEPS.EMAIL: {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          setTimeout(() => addBotMessage("That doesn't look like a valid email. Please try again."), 200);
+          return;
+        }
+        setOrderData((prev) => ({ ...prev, email: value }));
+        setTimeout(() => {
+          setOrderData((prev) => {
+            const basket = prev.basket.length ? prev.basket : computeBasket(prev.eventType, prev.guests, prev.colorTheme);
+            addBotMessage(getConfirmPrompt(basket));
+            setChoices([
+              { id: 'yes', label: 'Yes, place order' },
+              { id: 'no', label: 'Start over' },
+            ]);
+            setStep(STEPS.CONFIRM);
+            return { ...prev, basket };
+          });
+        }, 300);
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  function placeOrder() {
+    const { name, email, basket } = orderData;
     const correlationId = crypto.randomUUID();
     const envelope = {
       eventId: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
-      source: 'marketplace',
+      source: 'marketplace-chatbot',
       correlationId,
       payload: {
-        customerName: customerName.trim(),
-        email: email.trim(),
-        items,
+        customerName: name,
+        email,
+        items: basket,
         status: 'pending',
+        eventType: orderData.eventType,
+        guestCount: orderData.guests,
       },
     };
 
-    setSubmitting(true);
     publish(MARKETPLACE.ORDER_CREATED, envelope);
 
     setTimeout(() => {
-      setCustomerName('');
-      setEmail('');
-      setQuantities(Object.fromEntries(SWEETS.map((s) => [s.id, 0])));
-      setSubmitting(false);
+      addBotMessage(`Order placed! Your reference: ${correlationId.slice(0, 8).toUpperCase()}\n\nYour sweets are being prepared. Watch the event feed to see your order flow through the system.`);
+      setStep(STEPS.DONE);
+      setChoices([{ id: 'new', label: 'Place another order' }]);
     }, 400);
   }
 
+  function resetChat() {
+    setMessages([]);
+    setOrderData({ eventType: null, guests: null, colorTheme: null, name: '', email: '', basket: [] });
+    setInput('');
+    setChoices(null);
+    setTimeout(() => {
+      addBotMessage(getGreeting());
+      setChoices(EVENT_TYPES.map((e) => ({ id: e.id, label: `${e.icon} ${e.label}` })));
+      setStep(STEPS.EVENT_TYPE);
+    }, 100);
+  }
+
+  // Handle "Place another order"
+  function handleDoneChoice(choice) {
+    if (choice.id === 'new') resetChat();
+  }
+
   return (
-    <div className="h-full flex gap-4 p-4 overflow-hidden">
-      {/* LEFT — Order Form */}
-      <form onSubmit={handlePlaceOrder} className="flex-1 flex flex-col gap-4 min-w-0">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-white uppercase tracking-wide">Order Entry</h2>
-          <span className="text-[10px] font-mono text-white/30">L5 COMMERCE</span>
+    <div className="h-full flex overflow-hidden">
+      {/* LEFT — Chatbot */}
+      <div className="flex-1 flex flex-col min-h-0 min-w-0">
+        {/* Header */}
+        <div className="px-4 py-2 border-b border-white/10 flex items-center gap-3">
+          <div className="w-1.5 h-1.5 bg-[#00C895] animate-live" />
+          <span className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Solace Sweets Assistant</span>
+          <span className="text-[10px] text-white/20 font-mono ml-auto">L5 COMMERCE</span>
         </div>
 
-        {/* Customer fields */}
-        <div className="flex gap-3">
-          <div className="flex-1 flex flex-col gap-1">
-            <label className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Customer</label>
+        {/* Chat Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
+          {messages.map((msg, i) => (
+            <ChatBubble key={i} message={msg} />
+          ))}
+
+          {/* Choice Buttons */}
+          {choices && (
+            <div className="flex flex-wrap gap-2 pl-0 mt-1">
+              {choices.map((choice) => (
+                <button
+                  key={choice.id}
+                  onClick={() => step === STEPS.DONE ? handleDoneChoice(choice) : handleChoice(choice)}
+                  className="px-3 py-1.5 border border-white/20 text-white text-xs font-mono hover:bg-white/5 hover:border-[#00C895] transition-colors"
+                >
+                  {choice.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div ref={chatEndRef} />
+        </div>
+
+        {/* Input */}
+        {(step === STEPS.GUESTS || step === STEPS.NAME || step === STEPS.EMAIL) && (
+          <form onSubmit={handleSubmitInput} className="px-4 py-3 border-t border-white/10 flex gap-2">
             <input
-              type="text"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Name"
-              required
-              className="bg-black border border-white/10 text-white font-mono px-3 py-2 text-sm placeholder-white/20 focus:outline-none focus:border-[#00C895]"
+              ref={inputRef}
+              type={step === STEPS.GUESTS ? 'number' : step === STEPS.EMAIL ? 'email' : 'text'}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={
+                step === STEPS.GUESTS ? 'Number of guests...' :
+                step === STEPS.NAME ? 'Your name...' :
+                step === STEPS.EMAIL ? 'you@company.com' : '...'
+              }
+              autoFocus
+              className="flex-1 bg-black border border-white/10 text-white font-mono px-3 py-2 text-sm placeholder-white/20 focus:outline-none focus:border-[#00C895]"
             />
-          </div>
-          <div className="flex-1 flex flex-col gap-1">
-            <label className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email@company.com"
-              required
-              className="bg-black border border-white/10 text-white font-mono px-3 py-2 text-sm placeholder-white/20 focus:outline-none focus:border-[#00C895]"
-            />
-          </div>
-        </div>
-
-        {/* Sweet selection — horizontal row */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] uppercase tracking-widest text-white/40 font-mono mb-2">Items</label>
-          <div className="flex gap-0 border border-white/10 divide-x divide-white/10">
-            {SWEETS.map((sweet) => (
-              <div key={sweet.id} className="flex-1 flex items-center justify-between px-3 py-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-base">{sweet.emoji}</span>
-                  <span className="text-xs text-white/70 truncate">{sweet.name}</span>
-                </div>
-                <div className="flex items-center gap-1 shrink-0 ml-2">
-                  <button
-                    type="button"
-                    onClick={() => adjustQty(sweet.id, -1)}
-                    disabled={quantities[sweet.id] === 0}
-                    className="w-5 h-5 border border-white/10 text-white/50 flex items-center justify-center text-xs font-bold disabled:opacity-20 hover:border-white/30"
-                  >
-                    -
-                  </button>
-                  <span className={`w-5 text-center text-xs font-mono ${quantities[sweet.id] > 0 ? 'text-white' : 'text-white/20'}`}>
-                    {quantities[sweet.id]}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => adjustQty(sweet.id, 1)}
-                    disabled={quantities[sweet.id] >= 10}
-                    className="w-5 h-5 border border-white/10 text-white/50 flex items-center justify-center text-xs font-bold disabled:opacity-20 hover:border-white/30"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={submitting || totalItems === 0 || !customerName.trim() || !email.trim()}
-          className="w-full py-2.5 font-bold text-sm uppercase tracking-wider bg-[#00C895] text-black disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
-        >
-          {submitting ? 'SENDING...' : `SUBMIT ORDER${totalItems > 0 ? ` (${totalItems})` : ''}`}
-        </button>
-      </form>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-[#00C895] text-black font-bold text-xs uppercase tracking-wider"
+            >
+              Send
+            </button>
+          </form>
+        )}
+      </div>
 
       {/* RIGHT — Recent Orders */}
-      <div className="w-[340px] shrink-0 flex flex-col gap-2 border-l border-white/10 pl-4">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Recent Orders</span>
+      <div className="w-[300px] shrink-0 flex flex-col border-l border-white/10">
+        <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
+          <span className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Orders</span>
           <span className="text-[10px] font-mono text-white/20">{orders.length}</span>
         </div>
 
         {orders.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center text-white/20 text-xs font-mono">
-            NO ORDERS
+          <div className="flex-1 flex items-center justify-center text-white/20 text-[11px] font-mono">
+            NO ORDERS YET
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto flex flex-col gap-0 divide-y divide-white/5">
+          <div className="flex-1 overflow-y-auto divide-y divide-white/5">
             {orders.map((order, idx) => (
               <OrderRow key={order.eventId || idx} event={order} />
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────
+
+function ChatBubble({ message }) {
+  const isBot = message.role === 'bot';
+
+  return (
+    <div className={`flex ${isBot ? 'justify-start' : 'justify-end'}`}>
+      <div
+        className={`max-w-[80%] px-3 py-2 text-sm whitespace-pre-wrap ${
+          isBot
+            ? 'bg-white/5 border border-white/10 text-white/90'
+            : 'bg-[#00C895]/10 border border-[#00C895]/20 text-white'
+        }`}
+      >
+        {isBot && (
+          <div className="text-[9px] font-mono text-white/30 mb-1 uppercase">Solace AI</div>
+        )}
+        {message.text}
       </div>
     </div>
   );
@@ -166,27 +364,26 @@ function OrderRow({ event }) {
   const sweetMap = Object.fromEntries(SWEETS.map((s) => [s.id, s]));
 
   return (
-    <div className="py-2 flex flex-col gap-0.5">
+    <div className="px-3 py-2">
       <div className="flex items-center gap-2">
-        <span className="text-xs text-white font-medium">{payload.customerName || '—'}</span>
-        <span className="text-[10px] font-mono border border-white/20 text-white/60 px-1">
-          {payload.status?.toUpperCase() || 'PENDING'}
+        <span className="text-xs text-white font-medium truncate">{payload.customerName || '—'}</span>
+        <span className="text-[9px] font-mono border border-white/20 text-white/50 px-1 ml-auto shrink-0">
+          {(payload.status || 'PENDING').toUpperCase()}
         </span>
       </div>
-      <div className="text-[10px] text-white/40 font-mono">
+      <div className="text-[10px] text-white/40 font-mono mt-0.5">
         {items.map((item, i) => {
           const sweet = sweetMap[item.sweetType];
           return (
             <span key={i}>
-              {sweet?.emoji} {sweet?.name || item.sweetType} x{item.quantity}
-              {i < items.length - 1 && ' | '}
+              {sweet?.name || item.sweetType}×{item.quantity}
+              {i < items.length - 1 && ' · '}
             </span>
           );
         })}
       </div>
-      <div className="text-[10px] text-white/20 font-mono">
-        {event.correlationId && <span>{event.correlationId.slice(0, 12)}</span>}
-        {event.timestamp && <span className="ml-2">{new Date(event.timestamp).toLocaleTimeString()}</span>}
+      <div className="text-[9px] text-white/20 font-mono mt-0.5">
+        {event.correlationId?.slice(0, 8)} · {event.timestamp && new Date(event.timestamp).toLocaleTimeString()}
       </div>
     </div>
   );
