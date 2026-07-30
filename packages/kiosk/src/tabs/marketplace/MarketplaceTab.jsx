@@ -90,14 +90,17 @@ export default function MarketplaceTab() {
 
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
+  const didInit = useRef(false);
 
   // Auto-scroll to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Start conversation on mount
+  // Start conversation on mount (guard against StrictMode / remount double-fire)
   useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
     addBotMessage(getGreeting());
     setChoices(EVENT_TYPES.map((e) => ({ id: e.id, label: `${e.icon} ${e.label}` })));
     setStep(STEPS.EVENT_TYPE);

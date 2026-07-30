@@ -58,6 +58,13 @@ export const ARM = {
   HITL_APPROVED: topic('hitl/approved'),
 };
 
+// ─── SYSTEM / DEMO ORCHESTRATION (not part of the visible UNS) ─
+// Used for leader-election so exactly one open kiosk drives the
+// simulated cascade even when multiple screens/phones are connected.
+export const SYSTEM = {
+  SIM_HEARTBEAT: topic('_sim/heartbeat'),
+};
+
 // Wildcard patterns per layer
 export const WILDCARDS = {
   ALL: 'haribot/>',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSolaceConnection, useAllEvents } from './broker/useSolace.js';
 import { TOPIC_CATEGORIES } from './constants/theme.js';
 import { SimulationEngine } from './simulation/SimulationEngine.js';
@@ -40,36 +40,75 @@ export default function App() {
   const allEvents = useAllEvents(500);
   const [activeFilters, setActiveFilters] = useState(new Set(TOPIC_CATEGORIES));
 
+  // Simulation engine + presenter controls
+  const engineRef = useRef(null);
+  const [isOrchestrator, setIsOrchestrator] = useState(false);
+  const [autoDemo, setAutoDemo] = useState(true);
+  const [feedEpoch, setFeedEpoch] = useState(0); // bump to clear the feed view
+
   // Start simulation engine once connected
   useEffect(() => {
     if (connectionStatus === 'connected') {
       const engine = new SimulationEngine();
+      engineRef.current = engine;
+      engine.onRoleChange((lead) => setIsOrchestrator(lead));
       engine.start();
-      return () => engine.stop();
+      return () => {
+        engine.stop();
+        engineRef.current = null;
+      };
     }
   }, [connectionStatus]);
 
+  function handleTriggerOrder() {
+    engineRef.current?.triggerOrder();
+  }
+
+  function handleToggleAutoDemo() {
+    setAutoDemo((prev) => {
+      const next = !prev;
+      engineRef.current?.setAutoDemo(next);
+      return next;
+    });
+  }
+
+  function handleResetFeed() {
+    setFeedEpoch((n) => n + 1);
+  }
+
+  // Events shown in the feed, respecting the reset epoch (clears the view
+  // without touching the broker or the running cascade).
+  const [feedResetAt, setFeedResetAt] = useState(0);
+  useEffect(() => {
+    setFeedResetAt(allEvents.length ? (allEvents[0]?._receivedAt || Date.now()) : Date.now());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feedEpoch]);
+  const visibleEvents = useMemo(
+    () => allEvents.filter((e) => (e._receivedAt || 0) >= feedResetAt),
+    [allEvents, feedResetAt]
+  );
+
   // Filter events by active category filters
   const filteredEvents = useMemo(() => {
-    if (activeFilters.size === TOPIC_CATEGORIES.length) return allEvents;
-    return allEvents.filter((evt) => {
+    if (activeFilters.size === TOPIC_CATEGORIES.length) return visibleEvents;
+    return visibleEvents.filter((evt) => {
       const category = getCategoryFromTopic(evt.topic);
       return category && activeFilters.has(category);
     });
-  }, [allEvents, activeFilters]);
+  }, [visibleEvents, activeFilters]);
 
   // Track which categories have recent activity (last 5 seconds)
   const recentActivity = useMemo(() => {
     const now = Date.now();
     const active = new Set();
-    for (const evt of allEvents.slice(0, 50)) {
+    for (const evt of visibleEvents.slice(0, 50)) {
       if (now - (evt._receivedAt || 0) < 5000) {
         const cat = getCategoryFromTopic(evt.topic);
         if (cat) active.add(cat);
       }
     }
     return active;
-  }, [allEvents]);
+  }, [visibleEvents]);
 
   function toggleFilter(cat) {
     setActiveFilters((prev) => {
@@ -88,15 +127,28 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen bg-[#0a0a0a]">
       {/* Header */}
-      <header className="flex items-center justify-between px-5 py-2 border-b border-white/10 bg-black">
-        <div className="flex items-center gap-4">
-          <h1 className="text-sm font-bold text-white tracking-widest font-mono">
+      <header className="flex items-center justify-between px-6 py-3 border-b border-white/10 bg-black">
+        <div className="flex items-center gap-5">
+          <h1 className="text-lg font-bold text-white tracking-widest font-mono">
             <span className="text-[#00C895]">SOLACE</span> HARIBOT
           </h1>
-          <span className="text-[10px] text-white/30 font-mono tracking-wider">UNS DEMO / ISA-95</span>
+          <span className="text-[11px] text-white/30 font-mono tracking-wider">UNS DEMO / ISA-95</span>
         </div>
+
+        {/* Presenter control bar */}
+        <div className="flex items-center gap-2">
+          <ControlButton onClick={handleTriggerOrder} label="▶ TRIGGER ORDER" />
+          <ControlButton
+            onClick={handleToggleAutoDemo}
+            label={autoDemo ? '⏸ AUTO-DEMO ON' : '▷ AUTO-DEMO OFF'}
+            active={autoDemo}
+          />
+          <ControlButton onClick={handleResetFeed} label="⟳ RESET FEED" />
+        </div>
+
         <div className="flex items-center gap-4">
-          <span className="text-[10px] font-mono text-white/30">
+          <RoleBadge isOrchestrator={isOrchestrator} />
+          <span className="text-[11px] font-mono text-white/30">
             {allEvents.length > 0 && `${allEvents.length} events`}
           </span>
           <ConnectionBadge status={connectionStatus} />
@@ -141,17 +193,17 @@ export default function App() {
         {/* RIGHT: Event Feed Panel (30%) */}
         <div className="flex-[3] flex flex-col min-h-0 bg-black">
           {/* Panel Header */}
-          <div className="px-3 py-2 border-b border-white/10 flex items-center gap-2">
-            <div className="w-1.5 h-1.5 bg-[#00C895] animate-live" />
-            <span className="text-[10px] font-bold text-white/60 tracking-widest font-mono">UNS EVENT FEED</span>
-            <span className="text-[10px] text-white/20 font-mono ml-auto">{filteredEvents.length}</span>
+          <div className="px-4 py-2.5 border-b border-white/10 flex items-center gap-2">
+            <div className="w-2 h-2 bg-[#00C895] animate-live" />
+            <span className="text-[12px] font-bold text-white/70 tracking-widest font-mono">UNS EVENT FEED</span>
+            <span className="text-[12px] text-white/25 font-mono ml-auto">{filteredEvents.length}</span>
           </div>
 
           {/* Topic Tree */}
           <TopicTree recentActivity={recentActivity} />
 
           {/* Filter Chips */}
-          <div className="px-3 py-2 border-b border-white/10 flex flex-wrap gap-1">
+          <div className="px-4 py-2.5 border-b border-white/10 flex flex-wrap gap-1.5">
             {TOPIC_CATEGORIES.map((cat) => {
               const isActive = activeFilters.has(cat);
               const hasActivity = recentActivity.has(cat);
@@ -159,13 +211,13 @@ export default function App() {
                 <button
                   key={cat}
                   onClick={() => toggleFilter(cat)}
-                  className={`px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider border transition-colors
+                  className={`px-2.5 py-1 text-[11px] font-mono font-bold uppercase tracking-wider border transition-colors
                     ${isActive
                       ? 'border-white/30 text-white bg-white/5'
-                      : 'border-white/10 text-white/20 bg-transparent'
+                      : 'border-white/10 text-white/25 bg-transparent'
                     }`}
                 >
-                  {hasActivity && isActive && <span className="inline-block w-1 h-1 bg-[#00C895] mr-1 align-middle" />}
+                  {hasActivity && isActive && <span className="inline-block w-1.5 h-1.5 bg-[#00C895] mr-1.5 align-middle" />}
                   {cat}
                 </button>
               );
@@ -173,9 +225,9 @@ export default function App() {
           </div>
 
           {/* Event List */}
-          <div className="flex-1 overflow-y-auto px-3 py-1">
+          <div className="flex-1 overflow-y-auto px-4 py-1">
             {filteredEvents.length === 0 ? (
-              <div className="text-[10px] text-white/20 font-mono py-4 text-center">
+              <div className="text-[12px] text-white/25 font-mono py-4 text-center">
                 Waiting for events...
               </div>
             ) : (
@@ -198,13 +250,13 @@ function TopicTree({ recentActivity }) {
     <div className="border-b border-white/10">
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-white/[0.02] transition-colors"
+        className="w-full px-4 py-2 flex items-center gap-2 text-left hover:bg-white/[0.02] transition-colors"
       >
-        <span className="text-[9px] text-white/30 font-mono">{collapsed ? '▶' : '▼'}</span>
-        <span className="text-[9px] font-mono text-white/40 tracking-wider">TOPIC HIERARCHY</span>
+        <span className="text-[11px] text-white/30 font-mono">{collapsed ? '▶' : '▼'}</span>
+        <span className="text-[11px] font-mono text-white/50 tracking-wider">TOPIC HIERARCHY</span>
       </button>
       {!collapsed && (
-        <div className="px-3 pb-2 font-mono text-[9px] leading-relaxed">
+        <div className="px-4 pb-3 font-mono text-[11px] leading-relaxed">
           <div className="text-white/20">haribot/</div>
           <div className="text-white/20 pl-2">└─ paris-demo/</div>
           <div className="text-white/20 pl-5">└─ packing/</div>
@@ -247,10 +299,45 @@ function EventRow({ event }) {
   }
 
   return (
-    <div className="py-[3px] flex items-start gap-2 border-b border-white/[0.03] text-[10px] font-mono">
-      <span className="text-white/20 shrink-0 w-14">{time}</span>
-      <span className="text-white/60 truncate flex-1">{shortTopic}</span>
-      <span className="text-white/25 truncate max-w-[80px]">{preview}</span>
+    <div className="py-1 flex items-start gap-2.5 border-b border-white/[0.04] text-[12px] font-mono leading-snug">
+      <span className="text-white/25 shrink-0 w-[62px]">{time}</span>
+      <span className="text-white/70 truncate flex-1">{shortTopic}</span>
+      <span className="text-white/30 truncate max-w-[90px]">{preview}</span>
+    </div>
+  );
+}
+
+/* ─── Presenter Control Button ────────────────────────────────── */
+function ControlButton({ onClick, label, active }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 text-[11px] font-mono font-bold tracking-wider border transition-colors
+        ${active
+          ? 'border-[#00C895]/50 text-[#00C895] bg-[#00C895]/5 hover:bg-[#00C895]/10'
+          : 'border-white/15 text-white/60 bg-transparent hover:border-white/30 hover:text-white'
+        }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+/* ─── Orchestrator Role Badge ─────────────────────────────────── */
+function RoleBadge({ isOrchestrator }) {
+  return (
+    <div
+      className="flex items-center gap-2"
+      title={
+        isOrchestrator
+          ? 'This screen is driving the simulated cascade'
+          : 'Passive viewer — another screen is driving the cascade'
+      }
+    >
+      <div className={`w-1.5 h-1.5 ${isOrchestrator ? 'bg-[#00C895]' : 'bg-white/20'}`} />
+      <span className="text-[11px] text-white/40 uppercase font-mono tracking-wider">
+        {isOrchestrator ? 'ORCHESTRATOR' : 'VIEWER'}
+      </span>
     </div>
   );
 }
@@ -260,8 +347,8 @@ function ConnectionBadge({ status }) {
   const isConnected = status === 'connected';
   return (
     <div className="flex items-center gap-2">
-      <div className={`w-1.5 h-1.5 ${isConnected ? 'bg-[#00C895] animate-live' : 'bg-white/30'}`} />
-      <span className="text-[10px] text-white/40 uppercase font-mono tracking-wider">{status}</span>
+      <div className={`w-2 h-2 ${isConnected ? 'bg-[#00C895] animate-live' : 'bg-white/30'}`} />
+      <span className="text-[11px] text-white/40 uppercase font-mono tracking-wider">{status}</span>
     </div>
   );
 }

@@ -50,6 +50,9 @@ export function useAllEvents(maxEvents = 100) {
 
   useEffect(() => {
     const unsub = onMessage((topic, payload) => {
+      // Hide internal orchestration topics (e.g. leader-election heartbeats)
+      // from the customer-facing UNS feed — they aren't part of the story.
+      if (topic.includes('/_sim/')) return;
       setEvents((prev) => {
         const next = [{ topic, ...payload, _receivedAt: Date.now() }, ...prev];
         return next.slice(0, maxEvents);

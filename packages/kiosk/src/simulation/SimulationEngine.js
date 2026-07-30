@@ -8,7 +8,7 @@
  * 4. Auto-demo mode: place an order automatically if idle 30s
  */
 import { onMessage, publishMessage } from '../broker/connection.js';
-import { MARKETPLACE, ERP, MES, SCADA, ARM } from '../constants/topics.js';
+import { MARKETPLACE, ERP, MES, SCADA, ARM, SYSTEM } from '../constants/topics.js';
 import {
   SENSORS,
   ALARM_TYPES,
@@ -59,7 +59,30 @@ export class SimulationEngine {
     this._oeeValues = { availability: 82, performance: 78, quality: 95 };
     this._conveyorSpeed = 1.2;
     this._currentArmAngles = [0, -30, 45, 0, 0, 0]; // Default resting position
-    this._processingOrders = new Set(); // Guard against re-entrant chains
+    this._processingOrders = new Map(); // correlationId -> startedAt (watchdog)
+
+    // ─── Leader election: exactly one open kiosk drives the cascade ──
+    this._instanceId = uuid();
+    this._peers = new Map(); // instanceId -> lastSeenMs
+    this._isOrchestrator = false;
+    this._autoDemoEnabled = true;
+    this._onRoleChange = null; // (isOrchestrator) => void
+  }
+
+  /** Register a callback fired when this instance's orchestrator role flips. */
+  onRoleChange(cb) {
+    this._onRoleChange = cb;
+    // Fire immediately with current state
+    if (cb) cb(this._isOrchestrator);
+  }
+
+  isOrchestrator() {
+    return this._isOrchestrator;
+  }
+
+  setAutoDemo(enabled) {
+    this._autoDemoEnabled = enabled;
+    if (enabled) this._lastOrderTime = Date.now();
   }
 
   start() {
@@ -67,16 +90,33 @@ export class SimulationEngine {
     this._running = true;
     this._lastOrderTime = Date.now();
 
-    // Subscribe to all events
+    // Subscribe to all events (feed + orchestration heartbeats)
     this._unsubscribe = onMessage((topic, payload) => {
       this._handleEvent(topic, payload);
     });
 
-    // Start background data generation
+    // Leader election first — decides whether we cascade or just watch.
+    this._startHeartbeat();
+
+    // Background data + auto-demo run only when orchestrator (guarded inside).
     this._startBackgroundSensors();
     this._startConveyorStatus();
     this._startOEE();
     this._startAutoDemo();
+    this._startWatchdog();
+  }
+
+  // ─── Watchdog ────────────────────────────────────────────────
+  // Release any correlation that hasn't completed in 30s so a stuck
+  // order can never permanently block its ID from being re-run.
+  _startWatchdog() {
+    this._setInterval(() => {
+      if (!this._running) return;
+      const now = Date.now();
+      for (const [id, startedAt] of this._processingOrders) {
+        if (now - startedAt > 30000) this._processingOrders.delete(id);
+      }
+    }, 10000);
   }
 
   stop() {
@@ -92,6 +132,48 @@ export class SimulationEngine {
     this._intervals.forEach((i) => clearInterval(i));
     this._intervals = [];
     this._processingOrders.clear();
+    this._peers.clear();
+    this._isOrchestrator = false;
+  }
+
+  // ─── Leader Election ─────────────────────────────────────────
+  // Deterministic: lowest instanceId with a recent heartbeat wins.
+  // Self-healing: if the leader's tab closes, its heartbeats stop and
+  // another instance takes over within ~5s. No broker-side state needed.
+
+  _startHeartbeat() {
+    const HEARTBEAT_MS = 2000;
+    const PEER_TTL_MS = 5000;
+
+    const beat = () => {
+      if (!this._running) return;
+      // Announce presence
+      publishMessage(
+        SYSTEM.SIM_HEARTBEAT,
+        envelope('sim-system', null, { instanceId: this._instanceId })
+      );
+      // Expire stale peers
+      const now = Date.now();
+      for (const [id, seen] of this._peers) {
+        if (now - seen > PEER_TTL_MS) this._peers.delete(id);
+      }
+      // Elect: we lead if no live peer has a lower id than us
+      let shouldLead = true;
+      for (const id of this._peers.keys()) {
+        if (id < this._instanceId) {
+          shouldLead = false;
+          break;
+        }
+      }
+      if (shouldLead !== this._isOrchestrator) {
+        this._isOrchestrator = shouldLead;
+        if (shouldLead) this._lastOrderTime = Date.now();
+        if (this._onRoleChange) this._onRoleChange(shouldLead);
+      }
+    };
+
+    beat(); // immediate claim
+    this._setInterval(beat, HEARTBEAT_MS);
   }
 
   // ─── Scheduling helpers ──────────────────────────────────────
@@ -133,8 +215,22 @@ export class SimulationEngine {
   _handleEvent(topic, data) {
     if (!this._running) return;
 
+    // Orchestration heartbeats are handled regardless of role.
+    if (topic === SYSTEM.SIM_HEARTBEAT) {
+      const id = data?.payload?.instanceId;
+      if (id && id !== this._instanceId) this._peers.set(id, Date.now());
+      return;
+    }
+
+    // Track order arrivals for auto-demo idle timing on every instance,
+    // so a passive viewer that later becomes leader won't instantly fire.
+    if (topic === MARKETPLACE.ORDER_CREATED) this._lastOrderTime = Date.now();
+
+    // Only the orchestrator drives the simulated cascade — prevents
+    // duplicate ERP/MES/arm chains when multiple screens are open.
+    if (!this._isOrchestrator) return;
+
     if (topic === MARKETPLACE.ORDER_CREATED) {
-      this._lastOrderTime = Date.now();
       this._handleOrderCreated(data);
     } else if (topic === ERP.WORK_ORDER_RELEASED) {
       this._handleWorkOrderReleased(data);
@@ -150,7 +246,7 @@ export class SimulationEngine {
 
     // Guard: don't process the same correlation twice
     if (this._processingOrders.has(correlationId)) return;
-    this._processingOrders.add(correlationId);
+    this._processingOrders.set(correlationId, Date.now());
 
     const workOrderId = nextWorkOrderId();
     const items = data.payload?.items || randomSweets();
@@ -514,7 +610,7 @@ export class SimulationEngine {
 
   _startAutoDemo() {
     this._setInterval(() => {
-      if (!this._running) return;
+      if (!this._running || !this._isOrchestrator || !this._autoDemoEnabled) return;
 
       const idle = Date.now() - this._lastOrderTime;
       if (idle > 30000) {
@@ -522,6 +618,12 @@ export class SimulationEngine {
         this._placeAutoOrder();
       }
     }, 5000);
+  }
+
+  /** Presenter control: fire a demo order immediately (any instance can ask). */
+  triggerOrder() {
+    this._lastOrderTime = Date.now();
+    this._placeAutoOrder();
   }
 
   _placeAutoOrder() {

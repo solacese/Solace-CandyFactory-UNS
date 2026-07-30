@@ -14,6 +14,7 @@ let session = null;
 let status = 'disconnected'; // disconnected | connecting | connected | reconnecting
 const messageHandlers = [];
 const statusHandlers = [];
+const subscriptions = new Set(); // topic filters, replayed after reconnect
 
 function setStatus(s) {
   status = s;
@@ -75,6 +76,20 @@ export function connectBroker({
     });
 
     session.on(solace.SessionEventCode.RECONNECTED_NOTICE, () => {
+      // Subscriptions can be lost across a reconnect — replay them so the
+      // feed doesn't silently go dead after a Wi-Fi blip at the booth.
+      subscriptions.forEach((filter) => {
+        try {
+          session.subscribe(
+            solace.SolclientFactory.createTopicDestination(filter),
+            true,
+            filter,
+            10000
+          );
+        } catch (err) {
+          console.warn(`[kiosk] Re-subscribe failed for ${filter}:`, err.message);
+        }
+      });
       setStatus('connected');
     });
 
@@ -98,6 +113,7 @@ export function connectBroker({
  */
 export function subscribeTopic(topicFilter) {
   if (!session) throw new Error('Not connected');
+  subscriptions.add(topicFilter);
   session.subscribe(
     solace.SolclientFactory.createTopicDestination(topicFilter),
     true,
