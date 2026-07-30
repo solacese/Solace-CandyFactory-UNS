@@ -1,22 +1,29 @@
 @import "tailwindcss";
 
 @theme {
-  --color-terminal-bg: #0a0a0a;
-  --color-terminal-surface: #111111;
-  --color-terminal-border: rgba(255,255,255,0.1);
-  --color-accent: #00C895;
-  --color-accent-dim: rgba(0,200,149,0.15);
+  /* Light + pink palette */
+  --color-terminal-bg: #fdf2f8;        /* page background (pink-50) */
+  --color-terminal-surface: #ffffff;   /* card surface */
+  --color-terminal-border: rgba(236,72,153,0.16);
+  --color-accent: #ec4899;             /* pink-500 */
+  --color-accent-soft: #f9a8d4;        /* pink-300 */
+  --color-accent-dim: rgba(236,72,153,0.12);
+  --color-ink: #3b1f33;                /* primary text — soft plum, not pure black */
+  --color-ink-dim: rgba(59,31,51,0.6);
+  --color-ink-muted: rgba(59,31,51,0.38);
 }
 
 * {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 300;                     /* light-weight by default */
   border-radius: 0 !important;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
   margin: 0;
-  background: #0a0a0a;
-  color: #ffffff;
+  background: #fdf2f8;
+  color: #3b1f33;
   overflow: hidden;
   height: 100vh;
 }
@@ -28,24 +35,41 @@ body {
 }
 
 /* Scrollbar styling */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: rgba(236,72,153,0.05); }
+::-webkit-scrollbar-thumb { background: rgba(236,72,153,0.3); }
 
 /* Monospace for data */
 .font-mono {
   font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  font-weight: 400;
 }
 
-/* Remove all border-radius globally */
-*, *::before, *::after {
-  border-radius: 0 !important;
-}
+/* Headings / emphasis stay medium, never heavy */
+b, strong, .font-bold, .font-semibold { font-weight: 500 !important; }
+
+/* Rounded pill corners allowed on explicit .pill (overrides global reset) */
+.pill { border-radius: 9999px !important; }
+.rounded-card { border-radius: 14px !important; }
+
+/* ── Consistent type scale ────────────────────────────────
+   Three sizes only, applied via utility classes:
+   .t-label  micro uppercase labels
+   .t-data   default reading / data size
+   .t-title  section titles                                */
+.t-label { font-size: 11px; line-height: 1.4; letter-spacing: 0.08em; }
+.t-data  { font-size: 13px; line-height: 1.5; }
+.t-title { font-size: 15px; line-height: 1.4; font-weight: 500; }
 
 /* Single animation: subtle opacity */
 @keyframes pulse-live {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
-
 .animate-live { animation: pulse-live 2s ease-in-out infinite; }
+
+@keyframes float-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.animate-float { animation: float-soft 3s ease-in-out infinite; }

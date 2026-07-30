@@ -315,88 +315,116 @@ export class SimulationEngine {
     const workOrderId = data.payload?.workOrderId || 'WO-UNKNOWN';
     const items = data.payload?.items || [];
 
+    // Expand line-items into INDIVIDUAL UNITS — every gummy is its own
+    // event-driven transaction, sharing the order correlationId + a unique itemId.
+    const units = this._expandUnits(items, workOrderId);
+
     // MES: production/started
     this._setTimeout(() => {
       publishMessage(
         MES.PRODUCTION_STARTED,
         envelope('sim-mes', correlationId, {
           workOrderId,
-          itemCount: items.length,
+          lineItemCount: items.length,
+          unitCount: units.length,
         })
       );
 
-      // Sequentially process each item
-      this._processStepsSequentially(items, correlationId, workOrderId, 0);
+      // Process one unit at a time
+      this._processUnitsSequentially(units, correlationId, workOrderId, 0);
     }, 1000);
   }
 
-  _processStepsSequentially(items, correlationId, workOrderId, stepIndex) {
+  /** Flatten line-items to per-unit transactions: 3x Goldbears -> 3 units. */
+  _expandUnits(items, workOrderId) {
+    const units = [];
+    let seq = 0;
+    for (const item of items) {
+      const qty = Math.max(1, item.quantity || 1);
+      for (let q = 0; q < qty; q++) {
+        seq += 1;
+        const sweet = SWEETS.find((s) => s.id === item.sweetType) || SWEETS[0];
+        units.push({
+          itemId: `${workOrderId}-U${String(seq).padStart(2, '0')}`,
+          unitIndex: seq,
+          sweetType: item.sweetType,
+          sweetName: sweet.name,
+          bin: sweet.bin,
+        });
+      }
+    }
+    return units;
+  }
+
+  _processUnitsSequentially(units, correlationId, workOrderId, i) {
     if (!this._running) return;
-    if (stepIndex >= items.length) {
-      // All steps done
+    const total = units.length;
+
+    if (i >= total) {
+      // All units done → production complete → work order completed
       this._setTimeout(() => {
         publishMessage(
           MES.PRODUCTION_COMPLETE,
           envelope('sim-mes', correlationId, {
             workOrderId,
-            totalSteps: items.length,
+            unitsProduced: total,
           })
         );
 
-        // ERP: work-order/completed
         this._setTimeout(() => {
           publishMessage(
             ERP.WORK_ORDER_COMPLETED,
             envelope('sim-erp', correlationId, {
               workOrderId,
               status: 'completed',
+              unitsProduced: total,
               completedAt: new Date().toISOString(),
             })
           );
-          // Clean up tracking
           this._processingOrders.delete(correlationId);
         }, 500);
-      }, 800);
+      }, 700);
       return;
     }
 
-    const item = items[stepIndex];
-    const sweet = SWEETS.find((s) => s.id === item.sweetType) || SWEETS[0];
-    const stepName = `pick-${item.sweetType}`;
+    const unit = units[i];
+    const sweet = SWEETS.find((s) => s.id === unit.sweetType) || SWEETS[0];
+    const meta = {
+      workOrderId,
+      itemId: unit.itemId,
+      unitIndex: unit.unitIndex,
+      totalUnits: total,
+      sweetType: unit.sweetType,
+    };
 
-    // MES: step-begun
+    // MES: step-begun — one transaction per unit
     publishMessage(
       MES.PRODUCTION_STEP_BEGUN,
       envelope('sim-mes', correlationId, {
-        workOrderId,
-        stepIndex,
-        stepName,
-        sweetType: item.sweetType,
-        quantity: item.quantity,
+        ...meta,
+        stepName: `pick-unit-${unit.unitIndex}`,
       })
     );
 
-    // ARM: command (+500ms)
+    // ARM: command (+400ms)
     this._setTimeout(() => {
       publishMessage(
         ARM.COMMAND,
         envelope('sim-arm', correlationId, {
+          ...meta,
           commandType: 'pick',
-          params: {
-            target: sweet.name,
-            bin: sweet.bin,
-            quantity: item.quantity,
-          },
+          params: { target: sweet.name, bin: sweet.bin, quantity: 1, unit: unit.unitIndex },
         })
       );
 
-      // HITL: approval-required (only for first pick of each order)
-      if (stepIndex === 0) {
+      // HITL gate: once per order (before the first unit only)
+      if (i === 0) {
         this._setTimeout(() => {
           publishMessage(
             ARM.HITL_REQUIRED,
             envelope('sim-arm', correlationId, {
-              action: `Pick ${item.quantity}x ${sweet.name} from Bin ${sweet.bin}`,
+              ...meta,
+              action: `Begin pick sequence: ${total} units for ${workOrderId}`,
               commandType: 'pick',
               target: sweet.name,
               reason: 'First pick in new work order requires operator approval',
@@ -405,63 +433,62 @@ export class SimulationEngine {
         }, 200);
       }
 
-      // ARM: telemetry — simulate motion over ~2s
-      this._simulateArmMotion(correlationId, sweet.bin);
+      // ARM: motion (~1.6s), carrying the unit context on telemetry
+      this._simulateArmMotion(correlationId, sweet.bin, meta);
 
-      // ARM: status idle (+2500ms) → step-complete (+3000ms)
+      // ARM: idle (+2000ms)
       this._setTimeout(() => {
         publishMessage(
           ARM.STATUS,
           envelope('sim-arm', correlationId, {
+            ...meta,
             status: 'idle',
-            detail: `Completed pick of ${sweet.name}`,
+            detail: `Placed unit ${unit.unitIndex}/${total} — ${sweet.name}`,
           })
         );
-      }, 2500);
+      }, 2000);
 
+      // MES: step-complete + per-unit quality check (+2400ms) → next unit
       this._setTimeout(() => {
         publishMessage(
           MES.PRODUCTION_STEP_COMPLETE,
           envelope('sim-mes', correlationId, {
-            workOrderId,
-            stepIndex,
-            stepName,
+            ...meta,
+            stepName: `pick-unit-${unit.unitIndex}`,
           })
         );
 
-        // Quality check after step
         this._setTimeout(() => {
-          const pass = Math.random() < 0.95;
+          const pass = Math.random() < 0.97;
           publishMessage(
             MES.QUALITY_CHECK,
             envelope('sim-mes', correlationId, {
-              workOrderId,
-              stepIndex,
+              ...meta,
               result: pass ? 'pass' : 'fail',
               confidence: pass ? 0.97 + Math.random() * 0.03 : 0.4 + Math.random() * 0.3,
-              checkType: 'weight-verification',
+              checkType: 'per-unit-weight',
             })
           );
 
-          // Next step
-          this._processStepsSequentially(items, correlationId, workOrderId, stepIndex + 1);
-        }, 400);
-      }, 3000);
-    }, 500);
+          this._processUnitsSequentially(units, correlationId, workOrderId, i + 1);
+        }, 350);
+      }, 2400);
+    }, 400);
   }
 
   // ─── Arm Motion Simulation ───────────────────────────────────
 
-  _simulateArmMotion(correlationId, binIndex) {
+  _simulateArmMotion(correlationId, binIndex, meta = {}) {
     // Target angles based on bin position
     const targets = this._getTargetAngles(binIndex);
     const startAngles = [...this._currentArmAngles];
-    const steps = 10; // 10 steps over 2s = 200ms apart
+    const steps = 8; // 8 steps over ~1.6s = 200ms apart
 
     // Publish executing status
     publishMessage(
       ARM.STATUS,
       envelope('sim-arm', correlationId, {
+        ...meta,
         status: 'executing',
         detail: `Moving to Bin ${binIndex}`,
       })
@@ -478,6 +505,7 @@ export class SimulationEngine {
         publishMessage(
           ARM.TELEMETRY,
           envelope('sim-arm', correlationId, {
+            ...meta,
             jointAngles: angles,
             gripperState: t < 0.7 ? 'open' : 'closed',
           })

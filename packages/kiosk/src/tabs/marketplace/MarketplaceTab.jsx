@@ -259,10 +259,10 @@ export default function MarketplaceTab() {
       {/* LEFT — Chatbot */}
       <div className="flex-1 flex flex-col min-h-0 min-w-0">
         {/* Header */}
-        <div className="px-4 py-2 border-b border-white/10 flex items-center gap-3">
-          <div className="w-1.5 h-1.5 bg-[#00C895] animate-live" />
-          <span className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Solace Sweets Assistant</span>
-          <span className="text-[10px] text-white/20 font-mono ml-auto">L5 COMMERCE</span>
+        <div className="px-4 py-2 border-b border-[#ec4899]/10 flex items-center gap-3">
+          <div className="w-1.5 h-1.5 bg-[#ec4899] animate-live" />
+          <span className="t-label uppercase tracking-widest text-[#3b1f33]/40 font-mono">Solace Sweets Assistant</span>
+          <span className="t-label text-[#3b1f33]/20 font-mono ml-auto">L5 COMMERCE</span>
         </div>
 
         {/* Chat Messages */}
@@ -278,7 +278,7 @@ export default function MarketplaceTab() {
                 <button
                   key={choice.id}
                   onClick={() => step === STEPS.DONE ? handleDoneChoice(choice) : handleChoice(choice)}
-                  className="px-3 py-1.5 border border-white/20 text-white text-xs font-mono hover:bg-white/5 hover:border-[#00C895] transition-colors"
+                  className="px-3 py-1.5 border border-[#ec4899]/20 text-[#3b1f33] t-label font-mono hover:bg-[#ec4899]/5 hover:border-[#ec4899] transition-colors"
                 >
                   {choice.label}
                 </button>
@@ -291,7 +291,7 @@ export default function MarketplaceTab() {
 
         {/* Input */}
         {(step === STEPS.GUESTS || step === STEPS.NAME || step === STEPS.EMAIL) && (
-          <form onSubmit={handleSubmitInput} className="px-4 py-3 border-t border-white/10 flex gap-2">
+          <form onSubmit={handleSubmitInput} className="px-4 py-3 border-t border-[#ec4899]/10 flex gap-2">
             <input
               ref={inputRef}
               type={step === STEPS.GUESTS ? 'number' : step === STEPS.EMAIL ? 'email' : 'text'}
@@ -303,11 +303,11 @@ export default function MarketplaceTab() {
                 step === STEPS.EMAIL ? 'you@company.com' : '...'
               }
               autoFocus
-              className="flex-1 bg-black border border-white/10 text-white font-mono px-3 py-2 text-sm placeholder-white/20 focus:outline-none focus:border-[#00C895]"
+              className="flex-1 bg-white border border-[#ec4899]/10 text-[#3b1f33] font-mono px-3 py-2 t-data placeholder-[#3b1f33]/25 focus:outline-none focus:border-[#ec4899]"
             />
             <button
               type="submit"
-              className="px-4 py-2 bg-[#00C895] text-black font-bold text-xs uppercase tracking-wider"
+              className="px-4 py-2 bg-[#ec4899] text-white font-bold t-label uppercase tracking-wider"
             >
               Send
             </button>
@@ -316,14 +316,14 @@ export default function MarketplaceTab() {
       </div>
 
       {/* RIGHT — Recent Orders */}
-      <div className="w-[300px] shrink-0 flex flex-col border-l border-white/10">
-        <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-widest text-white/40 font-mono">Orders</span>
-          <span className="text-[10px] font-mono text-white/20">{orders.length}</span>
+      <div className="w-[300px] shrink-0 flex flex-col border-l border-[#ec4899]/10">
+        <div className="px-3 py-2 border-b border-[#ec4899]/10 flex items-center justify-between">
+          <span className="t-label uppercase tracking-widest text-[#3b1f33]/40 font-mono">Orders</span>
+          <span className="t-label font-mono text-[#3b1f33]/20">{orders.length}</span>
         </div>
 
         {orders.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center text-white/20 text-[11px] font-mono">
+          <div className="flex-1 flex items-center justify-center text-[#3b1f33]/20 t-label font-mono">
             NO ORDERS YET
           </div>
         ) : (
@@ -346,14 +346,14 @@ function ChatBubble({ message }) {
   return (
     <div className={`flex ${isBot ? 'justify-start' : 'justify-end'}`}>
       <div
-        className={`max-w-[80%] px-3 py-2 text-sm whitespace-pre-wrap ${
+        className={`max-w-[80%] px-3 py-2 t-data whitespace-pre-wrap ${
           isBot
-            ? 'bg-white/5 border border-white/10 text-white/90'
-            : 'bg-[#00C895]/10 border border-[#00C895]/20 text-white'
+            ? 'bg-[#ec4899]/5 border border-[#ec4899]/10 text-[#3b1f33]/90'
+            : 'bg-[#ec4899]/10 border border-[#ec4899]/20 text-[#3b1f33]'
         }`}
       >
         {isBot && (
-          <div className="text-[9px] font-mono text-white/30 mb-1 uppercase">Solace AI</div>
+          <div className="t-label font-mono text-[#3b1f33]/30 mb-1 uppercase">Solace AI</div>
         )}
         {message.text}
       </div>
@@ -369,12 +369,12 @@ function OrderRow({ event }) {
   return (
     <div className="px-3 py-2">
       <div className="flex items-center gap-2">
-        <span className="text-xs text-white font-medium truncate">{payload.customerName || '—'}</span>
-        <span className="text-[9px] font-mono border border-white/20 text-white/50 px-1 ml-auto shrink-0">
+        <span className="t-label text-[#3b1f33] font-medium truncate">{payload.customerName || '—'}</span>
+        <span className="t-label font-mono border border-[#ec4899]/20 text-[#3b1f33]/50 px-1 ml-auto shrink-0">
           {(payload.status || 'PENDING').toUpperCase()}
         </span>
       </div>
-      <div className="text-[10px] text-white/40 font-mono mt-0.5">
+      <div className="t-label text-[#3b1f33]/40 font-mono mt-0.5">
         {items.map((item, i) => {
           const sweet = sweetMap[item.sweetType];
           return (
@@ -385,7 +385,7 @@ function OrderRow({ event }) {
           );
         })}
       </div>
-      <div className="text-[9px] text-white/20 font-mono mt-0.5">
+      <div className="t-label text-[#3b1f33]/20 font-mono mt-0.5">
         {event.correlationId?.slice(0, 8)} · {event.timestamp && new Date(event.timestamp).toLocaleTimeString()}
       </div>
     </div>

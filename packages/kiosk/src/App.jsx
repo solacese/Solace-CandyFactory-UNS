@@ -125,14 +125,14 @@ export default function App() {
   const ActiveComponent = TABS.find((t) => t.key === activeTab)?.component;
 
   return (
-    <div className="flex flex-col h-screen bg-[#0a0a0a]">
+    <div className="flex flex-col h-screen bg-[#fdf2f8]">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-white/10 bg-black">
+      <header className="flex items-center justify-between px-6 py-3 border-b border-[#ec4899]/10 bg-[#fdf2f8]">
         <div className="flex items-center gap-5">
-          <h1 className="text-lg font-bold text-white tracking-widest font-mono">
-            <span className="text-[#00C895]">SOLACE</span> HARIBOT
+          <h1 className="t-title font-semibold text-[#3b1f33] tracking-widest font-mono">
+            <span className="text-[#ec4899]">SOLACE</span> HARIBOT
           </h1>
-          <span className="text-[11px] text-white/30 font-mono tracking-wider">UNS DEMO / ISA-95</span>
+          <span className="t-label text-[#3b1f33]/30 font-mono tracking-wider">UNS DEMO / ISA-95</span>
         </div>
 
         {/* Presenter control bar */}
@@ -148,7 +148,7 @@ export default function App() {
 
         <div className="flex items-center gap-4">
           <RoleBadge isOrchestrator={isOrchestrator} />
-          <span className="text-[11px] font-mono text-white/30">
+          <span className="t-label font-mono text-[#3b1f33]/30">
             {allEvents.length > 0 && `${allEvents.length} events`}
           </span>
           <ConnectionBadge status={connectionStatus} />
@@ -158,24 +158,24 @@ export default function App() {
       {/* Body: Split Layout */}
       <div className="flex-1 flex min-h-0">
         {/* LEFT: Tab Content (70%) */}
-        <div className="flex-[7] flex flex-col min-h-0 border-r border-white/10">
+        <div className="flex-[7] flex flex-col min-h-0 border-r border-[#ec4899]/10">
           {/* Tab Navigation */}
-          <nav className="flex border-b border-white/10 bg-[#0a0a0a]">
+          <nav className="flex border-b border-[#ec4899]/10 bg-[#fdf2f8]">
             {TABS.map((tab) => {
               const isActive = activeTab === tab.key;
               return (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`px-5 py-2.5 text-xs font-bold tracking-wider transition-colors relative
+                  className={`px-5 py-2.5 t-label font-bold tracking-wider transition-colors relative
                     ${isActive
-                      ? 'text-white bg-white/5'
-                      : 'text-white/40 hover:text-white/70 hover:bg-white/[0.02]'
+                      ? 'text-[#3b1f33] bg-[#ec4899]/5'
+                      : 'text-[#3b1f33]/40 hover:text-[#3b1f33]/70 hover:bg-[#ec4899]/[0.02]'
                     }`}
                 >
                   {tab.label}
                   {isActive && (
-                    <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#00C895]" />
+                    <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#ec4899]" />
                   )}
                 </button>
               );
@@ -191,19 +191,19 @@ export default function App() {
         </div>
 
         {/* RIGHT: Event Feed Panel (30%) */}
-        <div className="flex-[3] flex flex-col min-h-0 bg-black">
+        <div className="flex-[3] flex flex-col min-h-0 bg-[#fdf2f8]">
           {/* Panel Header */}
-          <div className="px-4 py-2.5 border-b border-white/10 flex items-center gap-2">
-            <div className="w-2 h-2 bg-[#00C895] animate-live" />
-            <span className="text-[12px] font-bold text-white/70 tracking-widest font-mono">UNS EVENT FEED</span>
-            <span className="text-[12px] text-white/25 font-mono ml-auto">{filteredEvents.length}</span>
+          <div className="px-4 py-2.5 border-b border-[#ec4899]/10 flex items-center gap-2">
+            <div className="w-2 h-2 bg-[#ec4899] animate-live" />
+            <span className="t-data font-bold text-[#3b1f33]/70 tracking-widest font-mono">UNS EVENT FEED</span>
+            <span className="t-data text-[#3b1f33]/25 font-mono ml-auto">{filteredEvents.length}</span>
           </div>
 
           {/* Topic Tree */}
           <TopicTree recentActivity={recentActivity} />
 
           {/* Filter Chips */}
-          <div className="px-4 py-2.5 border-b border-white/10 flex flex-wrap gap-1.5">
+          <div className="px-4 py-2.5 border-b border-[#ec4899]/10 flex flex-wrap gap-1.5">
             {TOPIC_CATEGORIES.map((cat) => {
               const isActive = activeFilters.has(cat);
               const hasActivity = recentActivity.has(cat);
@@ -211,13 +211,13 @@ export default function App() {
                 <button
                   key={cat}
                   onClick={() => toggleFilter(cat)}
-                  className={`px-2.5 py-1 text-[11px] font-mono font-bold uppercase tracking-wider border transition-colors
+                  className={`px-2.5 py-1 t-label font-mono font-bold uppercase tracking-wider border transition-colors
                     ${isActive
-                      ? 'border-white/30 text-white bg-white/5'
-                      : 'border-white/10 text-white/25 bg-transparent'
+                      ? 'border-[#ec4899]/30 text-[#3b1f33] bg-[#ec4899]/5'
+                      : 'border-[#ec4899]/10 text-[#3b1f33]/25 bg-transparent'
                     }`}
                 >
-                  {hasActivity && isActive && <span className="inline-block w-1.5 h-1.5 bg-[#00C895] mr-1.5 align-middle" />}
+                  {hasActivity && isActive && <span className="inline-block w-1.5 h-1.5 bg-[#ec4899] mr-1.5 align-middle" />}
                   {cat}
                 </button>
               );
@@ -227,7 +227,7 @@ export default function App() {
           {/* Event List */}
           <div className="flex-1 overflow-y-auto px-4 py-1">
             {filteredEvents.length === 0 ? (
-              <div className="text-[12px] text-white/25 font-mono py-4 text-center">
+              <div className="t-data text-[#3b1f33]/25 font-mono py-4 text-center">
                 Waiting for events...
               </div>
             ) : (
@@ -247,29 +247,29 @@ function TopicTree({ recentActivity }) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="border-b border-white/10">
+    <div className="border-b border-[#ec4899]/10">
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="w-full px-4 py-2 flex items-center gap-2 text-left hover:bg-white/[0.02] transition-colors"
+        className="w-full px-4 py-2 flex items-center gap-2 text-left hover:bg-[#ec4899]/[0.02] transition-colors"
       >
-        <span className="text-[11px] text-white/30 font-mono">{collapsed ? '▶' : '▼'}</span>
-        <span className="text-[11px] font-mono text-white/50 tracking-wider">TOPIC HIERARCHY</span>
+        <span className="t-label text-[#3b1f33]/30 font-mono">{collapsed ? '▶' : '▼'}</span>
+        <span className="t-label font-mono text-[#3b1f33]/50 tracking-wider">TOPIC HIERARCHY</span>
       </button>
       {!collapsed && (
-        <div className="px-4 pb-3 font-mono text-[11px] leading-relaxed">
-          <div className="text-white/20">haribot/</div>
-          <div className="text-white/20 pl-2">└─ paris-demo/</div>
-          <div className="text-white/20 pl-5">└─ packing/</div>
-          <div className="text-white/20 pl-8">└─ line1/</div>
+        <div className="px-4 pb-3 font-mono t-label leading-relaxed">
+          <div className="text-[#3b1f33]/20">haribot/</div>
+          <div className="text-[#3b1f33]/20 pl-2">└─ paris-demo/</div>
+          <div className="text-[#3b1f33]/20 pl-5">└─ packing/</div>
+          <div className="text-[#3b1f33]/20 pl-8">└─ line1/</div>
           {TOPIC_CATEGORIES.map((cat) => {
             const hasActivity = recentActivity.has(cat);
             return (
               <div key={cat} className="pl-11 flex items-center gap-1">
-                <span className="text-white/20">├─</span>
-                <span className={hasActivity ? 'text-[#00C895]' : 'text-white/30'}>
+                <span className="text-[#3b1f33]/20">├─</span>
+                <span className={hasActivity ? 'text-[#ec4899]' : 'text-[#3b1f33]/30'}>
                   {cat}/
                 </span>
-                {hasActivity && <span className="w-1 h-1 bg-[#00C895] animate-live" />}
+                {hasActivity && <span className="w-1 h-1 bg-[#ec4899] animate-live" />}
               </div>
             );
           })}
@@ -299,10 +299,10 @@ function EventRow({ event }) {
   }
 
   return (
-    <div className="py-1 flex items-start gap-2.5 border-b border-white/[0.04] text-[12px] font-mono leading-snug">
-      <span className="text-white/25 shrink-0 w-[62px]">{time}</span>
-      <span className="text-white/70 truncate flex-1">{shortTopic}</span>
-      <span className="text-white/30 truncate max-w-[90px]">{preview}</span>
+    <div className="py-1 flex items-start gap-2.5 border-b border-[#ec4899]/[0.04] t-data font-mono leading-snug">
+      <span className="text-[#3b1f33]/25 shrink-0 w-[62px]">{time}</span>
+      <span className="text-[#3b1f33]/70 truncate flex-1">{shortTopic}</span>
+      <span className="text-[#3b1f33]/30 truncate max-w-[90px]">{preview}</span>
     </div>
   );
 }
@@ -312,10 +312,10 @@ function ControlButton({ onClick, label, active }) {
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-1.5 text-[11px] font-mono font-bold tracking-wider border transition-colors
+      className={`px-3 py-1.5 t-label font-mono font-bold tracking-wider border transition-colors
         ${active
-          ? 'border-[#00C895]/50 text-[#00C895] bg-[#00C895]/5 hover:bg-[#00C895]/10'
-          : 'border-white/15 text-white/60 bg-transparent hover:border-white/30 hover:text-white'
+          ? 'border-[#ec4899]/50 text-[#ec4899] bg-[#ec4899]/5 hover:bg-[#ec4899]/10'
+          : 'border-[#ec4899]/15 text-[#3b1f33]/60 bg-transparent hover:border-[#ec4899]/30 hover:text-[#3b1f33]'
         }`}
     >
       {label}
@@ -334,8 +334,8 @@ function RoleBadge({ isOrchestrator }) {
           : 'Passive viewer — another screen is driving the cascade'
       }
     >
-      <div className={`w-1.5 h-1.5 ${isOrchestrator ? 'bg-[#00C895]' : 'bg-white/20'}`} />
-      <span className="text-[11px] text-white/40 uppercase font-mono tracking-wider">
+      <div className={`w-1.5 h-1.5 ${isOrchestrator ? 'bg-[#ec4899]' : 'bg-[#ec4899]/20'}`} />
+      <span className="t-label text-[#3b1f33]/40 uppercase font-mono tracking-wider">
         {isOrchestrator ? 'ORCHESTRATOR' : 'VIEWER'}
       </span>
     </div>
@@ -347,8 +347,8 @@ function ConnectionBadge({ status }) {
   const isConnected = status === 'connected';
   return (
     <div className="flex items-center gap-2">
-      <div className={`w-2 h-2 ${isConnected ? 'bg-[#00C895] animate-live' : 'bg-white/30'}`} />
-      <span className="text-[11px] text-white/40 uppercase font-mono tracking-wider">{status}</span>
+      <div className={`w-2 h-2 ${isConnected ? 'bg-[#ec4899] animate-live' : 'bg-[#ec4899]/30'}`} />
+      <span className="t-label text-[#3b1f33]/40 uppercase font-mono tracking-wider">{status}</span>
     </div>
   );
 }
