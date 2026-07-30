@@ -15,9 +15,9 @@ import * as THREE from 'three';
  */
 
 const DEG = Math.PI / 180;
-const ACCENT = '#ec4899';
-const ACCENT_SOFT = '#f9a8d4';
-const METAL = '#f5d0e5'; // soft pink-tinted "metal" links
+const ACCENT = '#db2777';
+const ACCENT_SOFT = '#f472b6';
+const METAL = '#e59ac2'; // pink-tinted "metal" links — deeper for contrast
 
 function lerpAngle(current, target, t) {
   return current + (target - current) * t;

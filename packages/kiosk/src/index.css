@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 @theme {
-  /* Light + pink palette */
-  --color-terminal-bg: #fdf2f8;        /* page background (pink-50) */
+  /* Light + pink palette — high contrast */
+  --color-terminal-bg: #fce7f2;        /* page background (deeper pink-100) */
   --color-terminal-surface: #ffffff;   /* card surface */
-  --color-terminal-border: rgba(236,72,153,0.16);
-  --color-accent: #ec4899;             /* pink-500 */
-  --color-accent-soft: #f9a8d4;        /* pink-300 */
-  --color-accent-dim: rgba(236,72,153,0.12);
-  --color-ink: #3b1f33;                /* primary text — soft plum, not pure black */
-  --color-ink-dim: rgba(59,31,51,0.6);
-  --color-ink-muted: rgba(59,31,51,0.38);
+  --color-terminal-border: rgba(190,24,93,0.32);
+  --color-accent: #db2777;             /* pink-600 — deeper for contrast */
+  --color-accent-soft: #f472b6;        /* pink-400 */
+  --color-accent-dim: rgba(219,39,119,0.14);
+  --color-ink: #2a0f22;                /* primary text — near-black plum */
+  --color-ink-dim: rgba(42,15,34,0.78);
+  --color-ink-muted: rgba(42,15,34,0.55);
 }
 
 * {
@@ -22,8 +22,8 @@
 
 body {
   margin: 0;
-  background: #fdf2f8;
-  color: #3b1f33;
+  background: #fce7f2;
+  color: #2a0f22;
   overflow: hidden;
   height: 100vh;
 }
@@ -57,8 +57,8 @@ b, strong, .font-bold, .font-semibold { font-weight: 500 !important; }
    .t-label  micro uppercase labels
    .t-data   default reading / data size
    .t-title  section titles                                */
-.t-label { font-size: 11px; line-height: 1.4; letter-spacing: 0.08em; }
-.t-data  { font-size: 13px; line-height: 1.5; }
+.t-label { font-size: 11px; line-height: 1.4; letter-spacing: 0.08em; font-weight: 400; }
+.t-data  { font-size: 13px; line-height: 1.5; font-weight: 400; }
 .t-title { font-size: 15px; line-height: 1.4; font-weight: 500; }
 
 /* Single animation: subtle opacity */

@@ -1,36 +1,36 @@
 /**
- * Light + pink design tokens.
- * Accent: #ec4899 (pink-500), soft #f9a8d4 (pink-300).
- * Text ("ink") is a soft plum rather than pure black to keep the UI light-weight.
+ * Light + pink design tokens — high contrast.
+ * Accent: #db2777 (pink-600), soft #f472b6 (pink-400).
+ * Text ("ink") is a near-black plum for strong legibility on light surfaces.
  */
 
 export const BRAND = {
-  bg: '#fdf2f8',
+  bg: '#fce7f2',
   surface: '#ffffff',
-  border: 'rgba(236,72,153,0.16)',
-  text: '#3b1f33',
-  textDim: 'rgba(59,31,51,0.6)',
-  textMuted: 'rgba(59,31,51,0.38)',
-  accent: '#ec4899',
-  accentSoft: '#f9a8d4',
+  border: 'rgba(190,24,93,0.32)',
+  text: '#2a0f22',
+  textDim: 'rgba(42,15,34,0.78)',
+  textMuted: 'rgba(42,15,34,0.55)',
+  accent: '#db2777',
+  accentSoft: '#f472b6',
 };
 
 export const LEVELS = {
-  5: { label: 'Level 5 — Commerce', color: '#ec4899' },
-  4: { label: 'Level 4 — ERP', color: '#d946ef' },
-  3: { label: 'Level 3 — MES', color: '#a855f7' },
-  2: { label: 'Level 2 — SCADA', color: '#8b5cf6' },
-  1: { label: 'Level 0-1 — Control', color: '#6366f1' },
+  5: { label: 'Level 5 — Commerce', color: '#db2777' },
+  4: { label: 'Level 4 — ERP', color: '#c026d3' },
+  3: { label: 'Level 3 — MES', color: '#9333ea' },
+  2: { label: 'Level 2 — SCADA', color: '#7c3aed' },
+  1: { label: 'Level 0-1 — Control', color: '#4f46e5' },
 };
 
-// Soft, distinguishable hues per UNS layer — all in the pink→violet family.
+// Deeper, distinguishable hues per UNS layer — pink→violet family.
 export const TOPIC_COLORS = {
-  orders: '#ec4899',
-  erp: '#d946ef',
-  mes: '#a855f7',
-  scada: '#8b5cf6',
-  arm: '#6366f1',
-  hitl: '#f43f5e',
+  orders: '#db2777',
+  erp: '#c026d3',
+  mes: '#9333ea',
+  scada: '#7c3aed',
+  arm: '#4f46e5',
+  hitl: '#e11d48',
 };
 
 export const TOPIC_CATEGORIES = ['orders', 'erp', 'mes', 'scada', 'arm', 'hitl'];

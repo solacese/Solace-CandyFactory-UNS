@@ -259,10 +259,10 @@ export default function MarketplaceTab() {
       {/* LEFT — Chatbot */}
       <div className="flex-1 flex flex-col min-h-0 min-w-0">
         {/* Header */}
-        <div className="px-4 py-2 border-b border-[#ec4899]/10 flex items-center gap-3">
-          <div className="w-1.5 h-1.5 bg-[#ec4899] animate-live" />
-          <span className="t-label uppercase tracking-widest text-[#3b1f33]/40 font-mono">Solace Sweets Assistant</span>
-          <span className="t-label text-[#3b1f33]/20 font-mono ml-auto">L5 COMMERCE</span>
+        <div className="px-4 py-2 border-b border-[#db2777]/28 flex items-center gap-3">
+          <div className="w-1.5 h-1.5 bg-[#db2777] animate-live" />
+          <span className="t-label uppercase tracking-widest text-[#2a0f22]/65 font-mono">Solace Sweets Assistant</span>
+          <span className="t-label text-[#2a0f22]/45 font-mono ml-auto">L5 COMMERCE</span>
         </div>
 
         {/* Chat Messages */}
@@ -278,7 +278,7 @@ export default function MarketplaceTab() {
                 <button
                   key={choice.id}
                   onClick={() => step === STEPS.DONE ? handleDoneChoice(choice) : handleChoice(choice)}
-                  className="px-3 py-1.5 border border-[#ec4899]/20 text-[#3b1f33] t-label font-mono hover:bg-[#ec4899]/5 hover:border-[#ec4899] transition-colors"
+                  className="px-3 py-1.5 border border-[#db2777]/40 text-[#2a0f22] t-label font-mono hover:bg-[#db2777]/5 hover:border-[#db2777] transition-colors"
                 >
                   {choice.label}
                 </button>
@@ -291,7 +291,7 @@ export default function MarketplaceTab() {
 
         {/* Input */}
         {(step === STEPS.GUESTS || step === STEPS.NAME || step === STEPS.EMAIL) && (
-          <form onSubmit={handleSubmitInput} className="px-4 py-3 border-t border-[#ec4899]/10 flex gap-2">
+          <form onSubmit={handleSubmitInput} className="px-4 py-3 border-t border-[#db2777]/28 flex gap-2">
             <input
               ref={inputRef}
               type={step === STEPS.GUESTS ? 'number' : step === STEPS.EMAIL ? 'email' : 'text'}
@@ -303,11 +303,11 @@ export default function MarketplaceTab() {
                 step === STEPS.EMAIL ? 'you@company.com' : '...'
               }
               autoFocus
-              className="flex-1 bg-white border border-[#ec4899]/10 text-[#3b1f33] font-mono px-3 py-2 t-data placeholder-[#3b1f33]/25 focus:outline-none focus:border-[#ec4899]"
+              className="flex-1 bg-white border border-[#db2777]/28 text-[#2a0f22] font-mono px-3 py-2 t-data placeholder-[#2a0f22]/50 focus:outline-none focus:border-[#db2777]"
             />
             <button
               type="submit"
-              className="px-4 py-2 bg-[#ec4899] text-white font-bold t-label uppercase tracking-wider"
+              className="px-4 py-2 bg-[#db2777] text-white font-bold t-label uppercase tracking-wider"
             >
               Send
             </button>
@@ -316,14 +316,14 @@ export default function MarketplaceTab() {
       </div>
 
       {/* RIGHT — Recent Orders */}
-      <div className="w-[300px] shrink-0 flex flex-col border-l border-[#ec4899]/10">
-        <div className="px-3 py-2 border-b border-[#ec4899]/10 flex items-center justify-between">
-          <span className="t-label uppercase tracking-widest text-[#3b1f33]/40 font-mono">Orders</span>
-          <span className="t-label font-mono text-[#3b1f33]/20">{orders.length}</span>
+      <div className="w-[300px] shrink-0 flex flex-col border-l border-[#db2777]/28">
+        <div className="px-3 py-2 border-b border-[#db2777]/28 flex items-center justify-between">
+          <span className="t-label uppercase tracking-widest text-[#2a0f22]/65 font-mono">Orders</span>
+          <span className="t-label font-mono text-[#2a0f22]/45">{orders.length}</span>
         </div>
 
         {orders.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center text-[#3b1f33]/20 t-label font-mono">
+          <div className="flex-1 flex items-center justify-center text-[#2a0f22]/45 t-label font-mono">
             NO ORDERS YET
           </div>
         ) : (
@@ -348,12 +348,12 @@ function ChatBubble({ message }) {
       <div
         className={`max-w-[80%] px-3 py-2 t-data whitespace-pre-wrap ${
           isBot
-            ? 'bg-[#ec4899]/5 border border-[#ec4899]/10 text-[#3b1f33]/90'
-            : 'bg-[#ec4899]/10 border border-[#ec4899]/20 text-[#3b1f33]'
+            ? 'bg-[#db2777]/5 border border-[#db2777]/28 text-[#2a0f22]/95'
+            : 'bg-[#db2777]/10 border border-[#db2777]/40 text-[#2a0f22]'
         }`}
       >
         {isBot && (
-          <div className="t-label font-mono text-[#3b1f33]/30 mb-1 uppercase">Solace AI</div>
+          <div className="t-label font-mono text-[#2a0f22]/55 mb-1 uppercase">Solace AI</div>
         )}
         {message.text}
       </div>
@@ -369,12 +369,12 @@ function OrderRow({ event }) {
   return (
     <div className="px-3 py-2">
       <div className="flex items-center gap-2">
-        <span className="t-label text-[#3b1f33] font-medium truncate">{payload.customerName || '—'}</span>
-        <span className="t-label font-mono border border-[#ec4899]/20 text-[#3b1f33]/50 px-1 ml-auto shrink-0">
+        <span className="t-label text-[#2a0f22] font-medium truncate">{payload.customerName || '—'}</span>
+        <span className="t-label font-mono border border-[#db2777]/40 text-[#2a0f22]/72 px-1 ml-auto shrink-0">
           {(payload.status || 'PENDING').toUpperCase()}
         </span>
       </div>
-      <div className="t-label text-[#3b1f33]/40 font-mono mt-0.5">
+      <div className="t-label text-[#2a0f22]/65 font-mono mt-0.5">
         {items.map((item, i) => {
           const sweet = sweetMap[item.sweetType];
           return (
@@ -385,7 +385,7 @@ function OrderRow({ event }) {
           );
         })}
       </div>
-      <div className="t-label text-[#3b1f33]/20 font-mono mt-0.5">
+      <div className="t-label text-[#2a0f22]/45 font-mono mt-0.5">
         {event.correlationId?.slice(0, 8)} · {event.timestamp && new Date(event.timestamp).toLocaleTimeString()}
       </div>
     </div>
