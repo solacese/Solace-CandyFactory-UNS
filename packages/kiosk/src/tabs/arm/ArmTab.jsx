@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSubscription, usePublish } from '../../broker/useSolace.js';
-import { ARM } from '../../constants/topics.js';
+import { ARM, WILDCARDS, shortTopic as stripPrefix } from '../../constants/topics.js';
 import { SWEETS } from '../../constants/demo-data.js';
 import Arm3D from './Arm3D.jsx';
 
@@ -14,8 +14,8 @@ const INK = '#052e22';
 
 // ─── Main Component ─────────────────────────────────────────────
 export default function ArmTab() {
-  const armEvents = useSubscription('haribot/paris-demo/packing/line1/arm/');
-  const hitlEvents = useSubscription('haribot/paris-demo/packing/line1/hitl/');
+  const armEvents = useSubscription(WILDCARDS.ARM);
+  const hitlEvents = useSubscription(WILDCARDS.HITL);
   const publish = usePublish();
 
   const [jointAngles, setJointAngles] = useState(DEFAULT_ANGLES);
@@ -68,7 +68,7 @@ export default function ArmTab() {
 
   const addLogEntry = useCallback((topic, data) => {
     setCommandLog((prev) => {
-      const shortTopic = topic.replace('haribot/paris-demo/packing/line1/', '');
+      const shortTopic = stripPrefix(topic);
       const entry = {
         id: data.eventId || crypto.randomUUID(),
         time: new Date(data.timestamp || Date.now()).toLocaleTimeString('en-GB', { hour12: false }),

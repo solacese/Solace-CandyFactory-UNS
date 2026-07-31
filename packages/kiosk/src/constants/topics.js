@@ -1,80 +1,110 @@
 /**
- * Extended UNS topic taxonomy — full ISA-95 stack.
- * Base: haribot/paris-demo/packing/line1/{message-type}
+ * ISA-95 Unified Namespace topic taxonomy.
+ *
+ * The UNS is organized by LOCATION (Enterprise → Site → Area → Line),
+ * and each business system publishes at the level where it actually
+ * operates — higher-level systems sit ABOVE the physical line:
+ *
+ *   haribot/
+ *   ├─ enterprise/
+ *   │  ├─ orders/   (L5 — Commerce / marketplace, company-wide)
+ *   │  └─ erp/      (L4 — ERP / business planning, company-wide)
+ *   └─ paris/                     (Site)
+ *      ├─ mes/      (L3 — MES / manufacturing operations, site-wide)
+ *      └─ packing/line1/          (Area / Line)
+ *         ├─ scada/  (L2 — supervisory control)
+ *         ├─ arm/    (L0-1 — field control)
+ *         └─ hitl/   (human-in-the-loop approvals)
  */
 
-const SITE = 'paris-demo';
-const AREA = 'packing';
-const LINE = 'line1';
-const PREFIX = `haribot/${SITE}/${AREA}/${LINE}`;
+const ROOT = 'haribot';
+const ENTERPRISE = `${ROOT}/enterprise`;   // company-wide business systems
+const SITE = `${ROOT}/paris`;              // manufacturing site
+const LINE = `${SITE}/packing/line1`;      // area / production line
 
-export function topic(msgType) {
-  return `${PREFIX}/${msgType}`;
+// Helper: build a topic under any of the location prefixes above.
+function t(prefix, path) {
+  return `${prefix}/${path}`;
 }
 
-// ─── LEVEL 5: MARKETPLACE / COMMERCE ─────────────────────────
+// ─── LEVEL 5: MARKETPLACE / COMMERCE (enterprise) ────────────
 export const MARKETPLACE = {
-  ORDER_CREATED: topic('orders/created'),
-  ORDER_VALIDATED: topic('orders/validated'),
-  ORDER_REJECTED: topic('orders/rejected'),
+  ORDER_CREATED: t(ENTERPRISE, 'orders/created'),
+  ORDER_VALIDATED: t(ENTERPRISE, 'orders/validated'),
+  ORDER_REJECTED: t(ENTERPRISE, 'orders/rejected'),
 };
 
-// ─── LEVEL 4: ERP / BUSINESS PLANNING ────────────────────────
+// ─── LEVEL 4: ERP / BUSINESS PLANNING (enterprise) ───────────
 export const ERP = {
-  WORK_ORDER_CREATED: topic('erp/work-order/created'),
-  WORK_ORDER_SCHEDULED: topic('erp/work-order/scheduled'),
-  WORK_ORDER_RELEASED: topic('erp/work-order/released'),
-  WORK_ORDER_COMPLETED: topic('erp/work-order/completed'),
-  MATERIAL_ALLOCATED: topic('erp/material/allocated'),
+  WORK_ORDER_CREATED: t(ENTERPRISE, 'erp/work-order/created'),
+  WORK_ORDER_SCHEDULED: t(ENTERPRISE, 'erp/work-order/scheduled'),
+  WORK_ORDER_RELEASED: t(ENTERPRISE, 'erp/work-order/released'),
+  WORK_ORDER_COMPLETED: t(ENTERPRISE, 'erp/work-order/completed'),
+  MATERIAL_ALLOCATED: t(ENTERPRISE, 'erp/material/allocated'),
 };
 
-// ─── LEVEL 3: MES / MANUFACTURING OPS ────────────────────────
+// ─── LEVEL 3: MES / MANUFACTURING OPS (site) ─────────────────
 export const MES = {
-  PRODUCTION_STARTED: topic('mes/production/started'),
-  PRODUCTION_STEP_BEGUN: topic('mes/production/step-begun'),
-  PRODUCTION_STEP_COMPLETE: topic('mes/production/step-complete'),
-  PRODUCTION_COMPLETE: topic('mes/production/complete'),
-  OEE_UPDATE: topic('mes/oee/update'),
-  QUALITY_CHECK: topic('mes/quality/check'),
-  BATCH_STATUS: topic('mes/batch/status'),
+  PRODUCTION_STARTED: t(SITE, 'mes/production/started'),
+  PRODUCTION_STEP_BEGUN: t(SITE, 'mes/production/step-begun'),
+  PRODUCTION_STEP_COMPLETE: t(SITE, 'mes/production/step-complete'),
+  PRODUCTION_COMPLETE: t(SITE, 'mes/production/complete'),
+  OEE_UPDATE: t(SITE, 'mes/oee/update'),
+  QUALITY_CHECK: t(SITE, 'mes/quality/check'),
+  BATCH_STATUS: t(SITE, 'mes/batch/status'),
 };
 
-// ─── LEVEL 2: SCADA / SUPERVISORY CONTROL ────────────────────
+// ─── LEVEL 2: SCADA / SUPERVISORY CONTROL (line) ─────────────
 export const SCADA = {
-  SENSOR_READING: topic('scada/sensor/reading'),
-  CONVEYOR_STATUS: topic('scada/conveyor/status'),
-  ALARM_RAISED: topic('scada/alarm/raised'),
-  ALARM_ACKNOWLEDGED: topic('scada/alarm/acknowledged'),
-  PROCESS_VALUE: topic('scada/process/value'),
-  LINE_STATUS: topic('scada/line/status'),
+  SENSOR_READING: t(LINE, 'scada/sensor/reading'),
+  CONVEYOR_STATUS: t(LINE, 'scada/conveyor/status'),
+  ALARM_RAISED: t(LINE, 'scada/alarm/raised'),
+  ALARM_ACKNOWLEDGED: t(LINE, 'scada/alarm/acknowledged'),
+  PROCESS_VALUE: t(LINE, 'scada/process/value'),
+  LINE_STATUS: t(LINE, 'scada/line/status'),
 };
 
-// ─── LEVEL 0-1: ARM / FIELD CONTROL ─────────────────────────
+// ─── LEVEL 0-1: ARM / FIELD CONTROL (line) ───────────────────
 export const ARM = {
-  COMMAND: topic('arm/command'),
-  TELEMETRY: topic('arm/telemetry'),
-  STATUS: topic('arm/status'),
-  HITL_REQUIRED: topic('hitl/approval-required'),
-  HITL_APPROVED: topic('hitl/approved'),
+  COMMAND: t(LINE, 'arm/command'),
+  TELEMETRY: t(LINE, 'arm/telemetry'),
+  STATUS: t(LINE, 'arm/status'),
+  HITL_REQUIRED: t(LINE, 'hitl/approval-required'),
+  HITL_APPROVED: t(LINE, 'hitl/approved'),
 };
 
 // ─── SYSTEM / DEMO ORCHESTRATION (not part of the visible UNS) ─
 // Used for leader-election so exactly one open kiosk drives the
 // simulated cascade even when multiple screens/phones are connected.
 export const SYSTEM = {
-  SIM_HEARTBEAT: topic('_sim/heartbeat'),
+  SIM_HEARTBEAT: t(ROOT, '_sim/heartbeat'),
 };
 
-// Wildcard patterns per layer
+// Wildcard subscription prefixes per layer (single source of truth).
 export const WILDCARDS = {
-  ALL: 'haribot/>',
-  ORDERS: `${PREFIX}/orders/`,
-  ERP: `${PREFIX}/erp/`,
-  MES: `${PREFIX}/mes/`,
-  SCADA: `${PREFIX}/scada/`,
-  ARM: `${PREFIX}/arm/`,
-  HITL: `${PREFIX}/hitl/`,
+  ALL: `${ROOT}/>`,
+  ORDERS: `${ENTERPRISE}/orders/`,
+  ERP: `${ENTERPRISE}/erp/`,
+  MES: `${SITE}/mes/`,
+  SCADA: `${LINE}/scada/`,
+  ARM: `${LINE}/arm/`,
+  HITL: `${LINE}/hitl/`,
 };
+
+// Location prefixes, exported for tree rendering / short-topic display.
+export const PREFIXES = { ROOT, ENTERPRISE, SITE, LINE };
+
+/**
+ * Strip the location prefix from a topic for compact display, leaving the
+ * system-relative path (e.g. "orders/created", "scada/sensor/reading").
+ */
+export function shortTopic(fullTopic = '') {
+  return fullTopic
+    .replace(`${LINE}/`, '')
+    .replace(`${SITE}/`, '')
+    .replace(`${ENTERPRISE}/`, '')
+    .replace(`${ROOT}/`, '');
+}
 
 // All topics flat (for reference)
 export const ALL_TOPICS = { ...MARKETPLACE, ...ERP, ...MES, ...SCADA, ...ARM };

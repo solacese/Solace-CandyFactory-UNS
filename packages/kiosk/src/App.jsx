@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSolaceConnection, useAllEvents } from './broker/useSolace.js';
 import { TOPIC_CATEGORIES } from './constants/theme.js';
+import { shortTopic as stripPrefix } from './constants/topics.js';
 import { SimulationEngine } from './simulation/SimulationEngine.js';
 import MarketplaceTab from './tabs/marketplace/MarketplaceTab.jsx';
 import ErpTab from './tabs/erp/ErpTab.jsx';
@@ -15,24 +16,6 @@ const TABS = [
   { key: 'scada', label: 'SCADA', component: ScadaTab },
   { key: 'arm', label: 'ARM', component: ArmTab },
 ];
-
-// UNS topic tree structure
-const TOPIC_TREE = {
-  'haribot': {
-    'paris-demo': {
-      'packing': {
-        'line1': {
-          'orders': null,
-          'erp': null,
-          'mes': null,
-          'scada': null,
-          'arm': null,
-          'hitl': null,
-        }
-      }
-    }
-  }
-};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('marketplace');
@@ -258,30 +241,43 @@ function TopicTree({ recentActivity }) {
       {!collapsed && (
         <div className="px-4 pb-3 font-mono t-label leading-relaxed">
           <div className="text-[#052e22]/45">haribot/</div>
-          <div className="text-[#052e22]/45 pl-2">└─ paris-demo/</div>
-          <div className="text-[#052e22]/45 pl-5">└─ packing/</div>
-          <div className="text-[#052e22]/45 pl-8">└─ line1/</div>
-          {TOPIC_CATEGORIES.map((cat) => {
-            const hasActivity = recentActivity.has(cat);
-            return (
-              <div key={cat} className="pl-11 flex items-center gap-1">
-                <span className="text-[#052e22]/45">├─</span>
-                <span className={hasActivity ? 'text-[#00c895]' : 'text-[#052e22]/55'}>
-                  {cat}/
-                </span>
-                {hasActivity && <span className="w-1 h-1 bg-[#00c895] animate-live" />}
-              </div>
-            );
-          })}
+
+          {/* Enterprise — company-wide business systems (L5, L4) */}
+          <div className="text-[#052e22]/45 pl-2">├─ enterprise/</div>
+          {['orders', 'erp'].map((cat) => (
+            <TreeLeaf key={cat} cat={cat} indent="pl-5" active={recentActivity.has(cat)} />
+          ))}
+
+          {/* Site — Paris manufacturing site */}
+          <div className="text-[#052e22]/45 pl-2">└─ paris/</div>
+          {/* MES lives at the site level (L3) */}
+          <TreeLeaf cat="mes" indent="pl-5" active={recentActivity.has('mes')} />
+
+          {/* Area / production line — shop-floor equipment (L2, L0-1) */}
+          <div className="text-[#052e22]/45 pl-5">└─ packing/line1/</div>
+          {['scada', 'arm', 'hitl'].map((cat) => (
+            <TreeLeaf key={cat} cat={cat} indent="pl-8" active={recentActivity.has(cat)} />
+          ))}
         </div>
       )}
     </div>
   );
 }
 
+/* ─── Topic tree leaf (one UNS category under its location) ────── */
+function TreeLeaf({ cat, indent, active }) {
+  return (
+    <div className={`${indent} flex items-center gap-1`}>
+      <span className="text-[#052e22]/45">├─</span>
+      <span className={active ? 'text-[#00c895]' : 'text-[#052e22]/55'}>{cat}/</span>
+      {active && <span className="w-1 h-1 bg-[#00c895] animate-live" />}
+    </div>
+  );
+}
+
 /* ─── Event Row ───────────────────────────────────────────────── */
 function EventRow({ event }) {
-  const shortTopic = event.topic?.replace('haribot/paris-demo/packing/line1/', '') || '';
+  const shortTopic = stripPrefix(event.topic || '');
   const time = event._receivedAt
     ? new Date(event._receivedAt).toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : '';
@@ -356,7 +352,7 @@ function ConnectionBadge({ status }) {
 /* ─── Helper ──────────────────────────────────────────────────── */
 function getCategoryFromTopic(topic) {
   if (!topic) return null;
-  const short = topic.replace('haribot/paris-demo/packing/line1/', '');
+  const short = stripPrefix(topic);
   if (short.startsWith('orders/')) return 'orders';
   if (short.startsWith('erp/')) return 'erp';
   if (short.startsWith('mes/')) return 'mes';

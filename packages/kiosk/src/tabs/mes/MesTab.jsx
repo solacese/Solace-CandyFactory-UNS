@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSubscription } from '../../broker/useSolace.js';
-import { WILDCARDS } from '../../constants/topics.js';
+import { WILDCARDS, shortTopic as stripPrefix } from '../../constants/topics.js';
 
 // ─── CONSTANTS ──────────────────────────────────────────────────────────
 const STEPS = ['Init', 'Pick-1', 'Pick-2', 'Pack', 'QC'];
@@ -248,7 +248,7 @@ export default function MesTab() {
             </div>
             <div className="space-y-0 max-h-[120px] overflow-y-auto">
               {events.slice(0, 12).map((evt, i) => {
-                const shortTopic = evt.topic?.replace('haribot/paris-demo/packing/line1/mes/', '') || '';
+                const shortTopic = stripPrefix(evt.topic || '').replace(/^mes\//, '');
                 return (
                   <div key={i} className="flex items-center gap-2 font-mono t-label py-0.5">
                     <span className="text-[#052e22]/45">{new Date(evt._receivedAt).toLocaleTimeString('en-GB', { hour12: false })}</span>
