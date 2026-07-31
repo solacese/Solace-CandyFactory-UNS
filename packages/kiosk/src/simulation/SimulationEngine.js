@@ -34,6 +34,15 @@ function envelope(source, correlationId, payload) {
   };
 }
 
+/** Roll per-unit transactions back up into line-items: [{sweetType, quantity}]. */
+function unitsToItems(units = []) {
+  const counts = new Map();
+  for (const u of units) {
+    counts.set(u.sweetType, (counts.get(u.sweetType) || 0) + 1);
+  }
+  return [...counts.entries()].map(([sweetType, quantity]) => ({ sweetType, quantity }));
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
@@ -299,6 +308,7 @@ export class SimulationEngine {
             ERP.WORK_ORDER_RELEASED,
             envelope('sim-erp', correlationId, {
               workOrderId,
+              customer,
               items,
               status: 'released',
             })
@@ -378,6 +388,10 @@ export class SimulationEngine {
               workOrderId,
               status: 'completed',
               unitsProduced: total,
+              // Echo the items on completion so the ERP view always has them
+              // even if the created/released events have scrolled out of the
+              // subscriber's buffer (DIRECT messaging has no replay).
+              items: unitsToItems(units),
               completedAt: new Date().toISOString(),
             })
           );

@@ -4,7 +4,11 @@ import { WILDCARDS } from '../../constants/topics.js';
 import { SWEETS } from '../../constants/demo-data.js';
 
 export default function ErpTab() {
-  const erpEvents = useSubscription(WILDCARDS.ERP);
+  // ERP emits ~4 events per work order (created/scheduled/released/completed).
+  // Keep a deep buffer so the items-bearing created/released events aren't
+  // evicted before their completed event arrives — otherwise completed rows
+  // lose their items and render "—".
+  const erpEvents = useSubscription(WILDCARDS.ERP, 600);
 
   // Aggregate work orders from events — latest status wins
   const workOrders = useMemo(() => {
@@ -15,10 +19,12 @@ export default function ErpTab() {
       const id = payload.workOrderId;
       if (!id) continue;
 
+      const eventCustomer = payload.customer?.name || payload.customerName || null;
+
       if (!woMap.has(id)) {
         woMap.set(id, {
           workOrderId: id,
-          customerName: payload.customerName || '—',
+          customerName: eventCustomer || '—',
           priority: payload.priority || 'medium',
           items: payload.items || [],
           status: payload.status || extractStatusFromTopic(event.topic),
@@ -32,6 +38,13 @@ export default function ErpTab() {
         if (statusRank(eventStatus) > statusRank(existing.status)) {
           existing.status = eventStatus;
         }
+        // Backfill richer fields from whichever event carries them — the
+        // `completed` event has no items/customer/priority, so a row must
+        // never lose data it saw on an earlier `created`/`released` event.
+        if (payload.items?.length && !existing.items.length) existing.items = payload.items;
+        if (eventCustomer && existing.customerName === '—') existing.customerName = eventCustomer;
+        if (payload.priority) existing.priority = payload.priority;
+        if (payload.createdAt) existing.createdAt = existing.createdAt || payload.createdAt;
         if (payload.scheduledStart) existing.scheduledStart = payload.scheduledStart;
         if (payload.scheduledEnd) existing.scheduledEnd = payload.scheduledEnd;
       }
@@ -94,7 +107,7 @@ export default function ErpTab() {
         <div className="flex-1 overflow-y-auto border border-[#00c895]/28">
           <table className="w-full t-label">
             <thead>
-              <tr className="t-label uppercase text-[#052e22]/55 border-b border-[#00c895]/28">
+              <tr className="t-label uppercase text-[#052e22]/75 border-b border-[#00c895]/28">
                 <th className="text-left px-3 py-2 font-medium">WO#</th>
                 <th className="text-left px-3 py-2 font-medium">Customer</th>
                 <th className="text-left px-3 py-2 font-medium">PRI</th>
@@ -106,14 +119,14 @@ export default function ErpTab() {
             <tbody>
               {workOrders.map((wo) => (
                 <tr key={wo.workOrderId} className="border-b border-[#00c895]/22 hover:bg-[#00c895]/[0.02]">
-                  <td className="px-3 py-2 font-mono text-[#052e22]/90">{wo.workOrderId}</td>
+                  <td className="px-3 py-2 font-mono text-[#052e22]">{wo.workOrderId}</td>
                   <td className="px-3 py-2 text-[#052e22]">{wo.customerName}</td>
                   <td className="px-3 py-2">
-                    <span className={`font-mono uppercase ${wo.priority === 'high' ? 'text-[#052e22]' : 'text-[#052e22]/72'}`}>
+                    <span className={`font-mono uppercase ${wo.priority === 'high' ? 'text-[#052e22] font-semibold' : 'text-[#052e22]/90'}`}>
                       {wo.priority === 'high' ? 'HIGH' : wo.priority === 'medium' ? 'MED' : 'LOW'}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-[#052e22]/82 font-mono">
+                  <td className="px-3 py-2 text-[#052e22] font-mono">
                     {wo.items.map((item, i) => {
                       const sweet = sweetMap[item.sweetType];
                       return (
@@ -123,12 +136,12 @@ export default function ErpTab() {
                         </span>
                       );
                     })}
-                    {wo.items.length === 0 && <span className="text-[#052e22]/45">—</span>}
+                    {wo.items.length === 0 && <span className="text-[#052e22]/70">—</span>}
                   </td>
-                  <td className="px-3 py-2 font-mono text-[#052e22]/88">
+                  <td className="px-3 py-2 font-mono text-[#052e22]">
                     [{wo.status?.toUpperCase() || 'CREATED'}]
                   </td>
-                  <td className="px-3 py-2 font-mono text-[#052e22]/55">
+                  <td className="px-3 py-2 font-mono text-[#052e22]/80">
                     {wo.createdAt ? new Date(wo.createdAt).toLocaleTimeString() : '—'}
                   </td>
                 </tr>
