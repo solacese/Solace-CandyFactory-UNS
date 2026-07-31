@@ -15,12 +15,14 @@ export const BRAND = {
   accentSoft: '#5eead4',
 };
 
+// Numbered by demo flow / tab order (1 = Marketplace … 5 = Arm), not by
+// the ISA-95 level index. Colors run green→blue across the stack.
 export const LEVELS = {
-  5: { label: 'Level 5 — Commerce', color: '#00c895' },
-  4: { label: 'Level 4 — ERP', color: '#059669' },
+  1: { label: 'Level 1 — Commerce', color: '#00c895' },
+  2: { label: 'Level 2 — ERP', color: '#059669' },
   3: { label: 'Level 3 — MES', color: '#0d9488' },
-  2: { label: 'Level 2 — SCADA', color: '#0891b2' },
-  1: { label: 'Level 0-1 — Control', color: '#0369a1' },
+  4: { label: 'Level 4 — SCADA', color: '#0891b2' },
+  5: { label: 'Level 5 — Control', color: '#0369a1' },
 };
 
 // Deeper, distinguishable hues per UNS layer — green→teal→cyan family.

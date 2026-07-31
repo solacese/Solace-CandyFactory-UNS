@@ -262,7 +262,7 @@ export default function MarketplaceTab() {
         <div className="px-4 py-2 border-b border-[#00c895]/28 flex items-center gap-3">
           <div className="w-1.5 h-1.5 bg-[#00c895] animate-live" />
           <span className="t-label uppercase tracking-widest text-[#052e22]/65 font-mono">Solace Sweets Assistant</span>
-          <span className="t-label text-[#052e22]/45 font-mono ml-auto">L5 COMMERCE</span>
+          <span className="t-label text-[#052e22]/45 font-mono ml-auto">1 COMMERCE</span>
         </div>
 
         {/* Chat Messages */}

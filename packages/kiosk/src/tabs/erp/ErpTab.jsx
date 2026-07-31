@@ -73,7 +73,7 @@ export default function ErpTab() {
       <div className="flex items-center justify-between">
         <h2 className="t-data font-medium text-[#052e22] uppercase tracking-wide">ERP Work Orders</h2>
         <span className="t-label font-mono text-[#052e22]/55">
-          L4 PLANNING | {erpEvents.length} EVT
+          2 PLANNING | {erpEvents.length} EVT
         </span>
       </div>
 
