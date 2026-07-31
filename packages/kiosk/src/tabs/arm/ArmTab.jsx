@@ -1,16 +1,14 @@
-import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSubscription, usePublish } from '../../broker/useSolace.js';
 import { ARM, WILDCARDS, shortTopic as stripPrefix } from '../../constants/topics.js';
 import { SWEETS } from '../../constants/demo-data.js';
-import Arm3D from './Arm3D.jsx';
+// NOTE: 3D arm visualization (Arm3D) temporarily removed — real footage of
+// the physical arm will be recorded and dropped in later.
 
 // ─── Constants ──────────────────────────────────────────────────
 const JOINT_NAMES = ['Base', 'Shoulder', 'Elbow', 'Wrist-P', 'Wrist-R', 'Gripper'];
 const DEFAULT_ANGLES = [0, -30, 45, 0, 0, 0];
 const MAX_LOG_ENTRIES = 40;
-const BIN_COLORS = SWEETS.map((s) => s.color); // index 0..3 → bin 1..4
-const ACCENT = '#00c895';
-const INK = '#052e22';
 
 // ─── Main Component ─────────────────────────────────────────────
 export default function ArmTab() {
@@ -24,7 +22,6 @@ export default function ArmTab() {
   const [hitlRequest, setHitlRequest] = useState(null);
   const [commandLog, setCommandLog] = useState([]);
   const [currentUnit, setCurrentUnit] = useState(null); // { itemId, unitIndex, totalUnits, sweetType }
-  const [heldColor, setHeldColor] = useState(null);
   const logRef = useRef(null);
 
   // Process arm events
@@ -39,7 +36,6 @@ export default function ArmTab() {
       if (p.gripperState) setGripperState(p.gripperState);
     } else if (topic === ARM.STATUS) {
       setArmStatus(p);
-      if (p.status === 'idle') setHeldColor(null);
     } else if (topic === ARM.COMMAND) {
       // A new per-unit pick command — track which unit the arm is handling
       if (p.itemId || p.unitIndex) {
@@ -50,8 +46,6 @@ export default function ArmTab() {
           sweetType: p.sweetType,
         });
       }
-      const sweet = SWEETS.find((s) => s.id === p.sweetType);
-      if (sweet) setHeldColor(sweet.color);
     }
 
     addLogEntry(topic, latest);
@@ -120,27 +114,17 @@ export default function ArmTab() {
 
       {/* Main content: 3D arm + Telemetry */}
       <div className="flex gap-2 flex-1 min-h-0">
-        {/* Left: 3D Robot Arm */}
+        {/* Left: Robot Arm feed (live video coming — visualization removed for now) */}
         <div className="flex-1 rounded-card border border-[#00c895]/34 bg-white overflow-hidden flex flex-col shadow-sm">
           <div className="flex items-center justify-between px-3 pt-2">
-            <span className="t-label uppercase text-[#052e22]/70 tracking-wider">Robot Arm · 3D</span>
+            <span className="t-label uppercase text-[#052e22]/70 tracking-wider">Robot Arm</span>
             <span className={`t-label font-mono uppercase px-2 py-0.5 pill border ${
               isActive ? 'border-[#00c895] text-[#00c895] bg-[#00c895]/8' : 'border-[#052e22]/45 text-[#052e22]/65'
             }`}>
               {armStatus.status || 'idle'}
             </span>
           </div>
-          <div className="flex-1 min-h-0">
-            <Suspense fallback={<Loading />}>
-              <Arm3D
-                angles={jointAngles}
-                gripperState={gripperState}
-                active={isActive}
-                binColors={BIN_COLORS}
-                heldColor={heldColor}
-              />
-            </Suspense>
-          </div>
+          <ArmFeedPlaceholder active={isActive} detail={armStatus.detail} />
           {/* Per-unit transaction banner */}
           <UnitBanner unit={currentUnit} status={armStatus.status} />
         </div>
@@ -192,10 +176,22 @@ export default function ArmTab() {
 
 // ─── Sub-components ─────────────────────────────────────────────
 
-function Loading() {
+function ArmFeedPlaceholder({ active, detail }) {
   return (
-    <div className="w-full h-full flex items-center justify-center">
-      <span className="t-label font-mono text-[#052e22]/55 animate-live">Loading 3D scene…</span>
+    <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 bg-[#ecfdf5] px-6 text-center">
+      <span className="text-4xl opacity-80">🦾</span>
+      <div className="flex flex-col gap-1">
+        <span className="t-title text-[#052e22]/88">Live arm footage coming soon</span>
+        <span className="t-label font-mono uppercase tracking-wider text-[#052e22]/55">
+          {active ? (detail || 'Arm executing — telemetry live →') : 'Awaiting command'}
+        </span>
+      </div>
+      {active && (
+        <div className="flex items-center gap-2 t-label font-mono uppercase tracking-wider text-[#00c895]">
+          <span className="w-1.5 h-1.5 pill bg-[#00c895] animate-live" />
+          Streaming telemetry
+        </div>
+      )}
     </div>
   );
 }
