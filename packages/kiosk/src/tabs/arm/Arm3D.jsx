@@ -15,9 +15,9 @@ import * as THREE from 'three';
  */
 
 const DEG = Math.PI / 180;
-const ACCENT = '#db2777';
-const ACCENT_SOFT = '#f472b6';
-const METAL = '#e59ac2'; // pink-tinted "metal" links — deeper for contrast
+const ACCENT = '#00c895';
+const ACCENT_SOFT = '#5eead4';
+const METAL = '#4bbf9a'; // teal-green "metal" links — solid against light floor
 
 function lerpAngle(current, target, t) {
   return current + (target - current) * t;
@@ -199,12 +199,12 @@ export default function Arm3D({ angles, gripperState = 'open', active = false, b
       style={{ width: '100%', height: '100%' }}
       gl={{ antialias: true, alpha: true }}
     >
-      <color attach="background" args={['#fff5fa']} />
-      <fog attach="fog" args={['#fff5fa', 8, 16]} />
+      <color attach="background" args={['#f0fdf9']} />
+      <fog attach="fog" args={['#f0fdf9', 8, 16]} />
 
       {/* Self-contained lighting — no CDN/HDR dependency (booth runs offline) */}
       <ambientLight intensity={0.85} />
-      <hemisphereLight args={['#ffffff', '#ffd9ec', 0.6]} />
+      <hemisphereLight args={['#ffffff', '#bbf7d0', 0.6]} />
       <directionalLight
         position={[4, 6, 3]}
         intensity={1.2}
@@ -220,7 +220,7 @@ export default function Arm3D({ angles, gripperState = 'open', active = false, b
       {/* Floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.02, 0]} receiveShadow>
         <planeGeometry args={[40, 40]} />
-        <meshStandardMaterial color="#ffeaf4" roughness={0.9} />
+        <meshStandardMaterial color="#dcfce7" roughness={0.9} />
       </mesh>
       <ContactShadows position={[0, -1.0, 0]} opacity={0.35} scale={10} blur={2.2} far={4} color={ACCENT} />
 

@@ -11,17 +11,17 @@ function AlarmBanner({ alarms, onAcknowledge }) {
   if (alarms.length === 0) return null;
 
   return (
-    <div className="border border-[#db2777]/28 border-l-2 border-l-white bg-[#ffffff] px-3 py-2">
+    <div className="border border-[#00c895]/28 border-l-2 border-l-white bg-[#ffffff] px-3 py-2">
       {alarms.map((alarm, i) => (
         <div key={i} className="flex items-center gap-3 t-label font-mono py-0.5">
-          <span className="text-[#2a0f22] font-bold">[ALARM]</span>
-          <span className="text-[#2a0f22]/90 flex-1 truncate">{alarm.message}</span>
-          <span className="text-[#2a0f22]/55">
+          <span className="text-[#052e22] font-bold">[ALARM]</span>
+          <span className="text-[#052e22]/90 flex-1 truncate">{alarm.message}</span>
+          <span className="text-[#052e22]/55">
             {alarm.timestamp ? new Date(alarm.timestamp).toLocaleTimeString('en-GB', { hour12: false }) : ''}
           </span>
           <button
             onClick={() => onAcknowledge(alarm)}
-            className="px-2 py-0.5 t-label uppercase border border-[#db2777]/48 text-[#2a0f22] hover:bg-[#db2777]/10 transition-colors"
+            className="px-2 py-0.5 t-label uppercase border border-[#00c895]/48 text-[#052e22] hover:bg-[#00c895]/10 transition-colors"
           >
             ACK
           </button>
@@ -63,20 +63,20 @@ function Sparkline({ values, width = 100, height = 24 }) {
 // ─── SENSOR CARD ────────────────────────────────────────────────────────
 function SensorCard({ sensorId, value, unit, status, history }) {
   return (
-    <div className="border border-[#db2777]/28 bg-[#ffffff] p-2 flex flex-col gap-1">
+    <div className="border border-[#00c895]/28 bg-[#ffffff] p-2 flex flex-col gap-1">
       <div className="flex items-center justify-between">
-        <span className="t-label font-mono text-[#2a0f22]/65">{sensorId}</span>
+        <span className="t-label font-mono text-[#052e22]/65">{sensorId}</span>
         <span className={`t-label font-mono uppercase px-1 border ${
-          status === 'normal' ? 'border-[#db2777]/28 text-[#2a0f22]/65' :
-          status === 'warning' ? 'border-[#db2777]/48 text-[#2a0f22]/88' :
-          'border-[#db2777] text-[#2a0f22]'
+          status === 'normal' ? 'border-[#00c895]/28 text-[#052e22]/65' :
+          status === 'warning' ? 'border-[#00c895]/48 text-[#052e22]/88' :
+          'border-[#00c895] text-[#052e22]'
         }`}>
           {status}
         </span>
       </div>
       <div className="flex items-baseline gap-1">
-        <span className="text-2xl font-mono text-[#2a0f22]">{typeof value === 'number' ? value.toFixed(1) : value}</span>
-        <span className="t-label font-mono text-[#2a0f22]/55">{unit}</span>
+        <span className="text-2xl font-mono text-[#052e22]">{typeof value === 'number' ? value.toFixed(1) : value}</span>
+        <span className="t-label font-mono text-[#052e22]/55">{unit}</span>
       </div>
       <Sparkline values={history} width={120} height={20} />
     </div>
@@ -94,17 +94,17 @@ function ProcessFlow({ processValues }) {
   ];
 
   return (
-    <div className="border border-[#db2777]/28 bg-[#ffffff] p-3">
-      <div className="t-label text-[#2a0f22]/65 uppercase tracking-wider mb-2">Process Flow</div>
+    <div className="border border-[#00c895]/28 bg-[#ffffff] p-3">
+      <div className="t-label text-[#052e22]/65 uppercase tracking-wider mb-2">Process Flow</div>
       <div className="flex items-center justify-between font-mono t-label">
         {stages.map((stage, i) => (
           <div key={stage.id} className="flex items-center">
             <div className="flex flex-col items-center">
-              <span className="text-[#2a0f22]/88">{stage.label}</span>
-              <span className="t-label text-[#2a0f22]/55 mt-0.5">{processValues[stage.id] || '—'}</span>
+              <span className="text-[#052e22]/88">{stage.label}</span>
+              <span className="t-label text-[#052e22]/55 mt-0.5">{processValues[stage.id] || '—'}</span>
             </div>
             {i < stages.length - 1 && (
-              <span className="text-[#2a0f22]/45 mx-2">→</span>
+              <span className="text-[#052e22]/45 mx-2">→</span>
             )}
           </div>
         ))}
@@ -117,19 +117,19 @@ function ProcessFlow({ processValues }) {
 function ConveyorMetrics({ speed, itemsInTransit, itemsProcessed }) {
   return (
     <div className="flex gap-0">
-      <div className="flex-1 border border-[#db2777]/28 px-3 py-2">
-        <div className="t-label text-[#2a0f22]/55 uppercase tracking-wider">Speed</div>
-        <span className="text-2xl font-mono text-[#2a0f22]">{speed.toFixed(1)}</span>
-        <span className="t-label font-mono text-[#2a0f22]/55 ml-1">m/s</span>
+      <div className="flex-1 border border-[#00c895]/28 px-3 py-2">
+        <div className="t-label text-[#052e22]/55 uppercase tracking-wider">Speed</div>
+        <span className="text-2xl font-mono text-[#052e22]">{speed.toFixed(1)}</span>
+        <span className="t-label font-mono text-[#052e22]/55 ml-1">m/s</span>
       </div>
-      <div className="flex-1 border border-[#db2777]/28 px-3 py-2">
-        <div className="t-label text-[#2a0f22]/55 uppercase tracking-wider">In Transit</div>
-        <span className="text-2xl font-mono text-[#2a0f22]">{itemsInTransit}</span>
+      <div className="flex-1 border border-[#00c895]/28 px-3 py-2">
+        <div className="t-label text-[#052e22]/55 uppercase tracking-wider">In Transit</div>
+        <span className="text-2xl font-mono text-[#052e22]">{itemsInTransit}</span>
       </div>
-      <div className="flex-1 border border-[#db2777]/28 px-3 py-2">
-        <div className="t-label text-[#2a0f22]/55 uppercase tracking-wider">Throughput</div>
-        <span className="text-2xl font-mono text-[#2a0f22]">{itemsProcessed.toLocaleString()}</span>
-        <span className="t-label font-mono text-[#2a0f22]/55 ml-1">today</span>
+      <div className="flex-1 border border-[#00c895]/28 px-3 py-2">
+        <div className="t-label text-[#052e22]/55 uppercase tracking-wider">Throughput</div>
+        <span className="text-2xl font-mono text-[#052e22]">{itemsProcessed.toLocaleString()}</span>
+        <span className="t-label font-mono text-[#052e22]/55 ml-1">today</span>
       </div>
     </div>
   );
@@ -215,7 +215,7 @@ export default function ScadaTab() {
   const sensorList = Object.values(sensors);
 
   return (
-    <div className="h-full p-3 overflow-y-auto flex flex-col gap-2 bg-[#fdf2f8]">
+    <div className="h-full p-3 overflow-y-auto flex flex-col gap-2 bg-[#ecfdf5]">
       {/* Alarm Banner */}
       <AlarmBanner alarms={alarms} onAcknowledge={handleAcknowledge} />
 
@@ -234,8 +234,8 @@ export default function ScadaTab() {
 
       {/* Live indicator */}
       <div className="flex items-center gap-2 px-1">
-        <div className="w-1.5 h-1.5 bg-[#db2777] animate-pulse" />
-        <span className="t-label font-mono text-[#2a0f22]/55">LIVE — {events.length} events captured</span>
+        <div className="w-1.5 h-1.5 bg-[#00c895] animate-pulse" />
+        <span className="t-label font-mono text-[#052e22]/55">LIVE — {events.length} events captured</span>
       </div>
     </div>
   );

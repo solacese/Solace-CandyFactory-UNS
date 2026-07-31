@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 @theme {
-  /* Light + pink palette — high contrast */
-  --color-terminal-bg: #fce7f2;        /* page background (deeper pink-100) */
+  /* Light + green (Solace) palette — high contrast */
+  --color-terminal-bg: #e6faf3;        /* page background (pale green) */
   --color-terminal-surface: #ffffff;   /* card surface */
-  --color-terminal-border: rgba(190,24,93,0.32);
-  --color-accent: #db2777;             /* pink-600 — deeper for contrast */
-  --color-accent-soft: #f472b6;        /* pink-400 */
-  --color-accent-dim: rgba(219,39,119,0.14);
-  --color-ink: #2a0f22;                /* primary text — near-black plum */
-  --color-ink-dim: rgba(42,15,34,0.78);
-  --color-ink-muted: rgba(42,15,34,0.55);
+  --color-terminal-border: rgba(6,120,90,0.32);
+  --color-accent: #00c895;             /* Solace green */
+  --color-accent-soft: #5eead4;        /* teal-300 */
+  --color-accent-dim: rgba(0,200,149,0.14);
+  --color-ink: #052e22;                /* primary text — near-black green */
+  --color-ink-dim: rgba(5,46,34,0.78);
+  --color-ink-muted: rgba(5,46,34,0.55);
 }
 
 * {
@@ -22,8 +22,8 @@
 
 body {
   margin: 0;
-  background: #fce7f2;
-  color: #2a0f22;
+  background: #e6faf3;
+  color: #052e22;
   overflow: hidden;
   height: 100vh;
 }
@@ -36,8 +36,8 @@ body {
 
 /* Scrollbar styling */
 ::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: rgba(236,72,153,0.05); }
-::-webkit-scrollbar-thumb { background: rgba(236,72,153,0.3); }
+::-webkit-scrollbar-track { background: rgba(0,200,149,0.05); }
+::-webkit-scrollbar-thumb { background: rgba(0,200,149,0.3); }
 
 /* Monospace for data */
 .font-mono {
