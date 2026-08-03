@@ -255,7 +255,15 @@ export default function MesTab() {
 
   return (
     <div className="h-full p-3 overflow-y-auto bg-[#ecfdf5]">
-      <div className="grid grid-cols-12 gap-3 h-full auto-rows-min">
+      {/* ─── TOP: KPI STATS (units/hr, uptime, cycle, defect) ─── */}
+      <div className="grid grid-cols-4 gap-2 mb-3">
+        <StatBox label="Units/hr" value={kpi.unitsPerHour} {...T.unitsPerHour} />
+        <StatBox label="Uptime" value={kpi.uptime} {...T.uptime} />
+        <StatBox label="Cycle" value={kpi.cycleTime} {...T.cycleTime} />
+        <StatBox label="Defect" value={kpi.defectRate} {...T.defectRate} />
+      </div>
+
+      <div className="grid grid-cols-12 gap-3 auto-rows-min">
         {/* ─── LEFT: OEE + BATCH ─────────────────────────────── */}
         <div className="col-span-5 flex flex-col gap-3">
           <div className="border border-[#00c895]/28 bg-white p-4">
@@ -295,13 +303,6 @@ export default function MesTab() {
                 <div className="t-label font-mono text-[#052e22]/45 py-2">Awaiting MES events...</div>
               )}
             </div>
-          </div>
-
-          <div className="grid grid-cols-4 gap-2">
-            <StatBox label="Units/hr" value={kpi.unitsPerHour} {...T.unitsPerHour} />
-            <StatBox label="Uptime" value={kpi.uptime} {...T.uptime} />
-            <StatBox label="Cycle" value={kpi.cycleTime} {...T.cycleTime} />
-            <StatBox label="Defect" value={kpi.defectRate} {...T.defectRate} />
           </div>
         </div>
       </div>
