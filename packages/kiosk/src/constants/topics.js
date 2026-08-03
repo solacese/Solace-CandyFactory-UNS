@@ -41,6 +41,7 @@ export const ERP = {
   WORK_ORDER_RELEASED: t(ENTERPRISE, 'erp/work-order/released'),
   WORK_ORDER_COMPLETED: t(ENTERPRISE, 'erp/work-order/completed'),
   MATERIAL_ALLOCATED: t(ENTERPRISE, 'erp/material/allocated'),
+  INVENTORY_LEVEL: t(ENTERPRISE, 'erp/inventory/level'),
 };
 
 // ─── LEVEL 3: MES / MANUFACTURING OPS (site) ─────────────────
@@ -49,6 +50,7 @@ export const MES = {
   PRODUCTION_STEP_BEGUN: t(SITE, 'mes/production/step-begun'),
   PRODUCTION_STEP_COMPLETE: t(SITE, 'mes/production/step-complete'),
   PRODUCTION_COMPLETE: t(SITE, 'mes/production/complete'),
+  ORDER_COMPLETED: t(SITE, 'mes/order/completed'),
   OEE_UPDATE: t(SITE, 'mes/oee/update'),
   QUALITY_CHECK: t(SITE, 'mes/quality/check'),
   BATCH_STATUS: t(SITE, 'mes/batch/status'),

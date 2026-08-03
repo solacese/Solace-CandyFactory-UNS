@@ -1,20 +1,37 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSubscription, usePublish } from '../../broker/useSolace.js';
 import { WILDCARDS, SCADA } from '../../constants/topics.js';
+import { SENSORS, SENSOR_TARGETS } from '../../constants/demo-data.js';
+import { STATUS_COLORS, gradeVsBand } from '../../constants/theme.js';
 
 // ─── CONSTANTS ──────────────────────────────────────────────────────────
 const SCADA_PREFIX = WILDCARDS.SCADA;
-const MAX_SPARKLINE_POINTS = 20;
+const MAX_POINTS = 40;
+
+// Seed one card per sensor the engine actually publishes.
+function seedSensors() {
+  const out = {};
+  for (const s of SENSORS) {
+    out[s.id] = {
+      sensorId: s.id,
+      type: s.type,
+      value: s.base,
+      unit: s.unit,
+      location: s.location,
+      history: [s.base],
+    };
+  }
+  return out;
+}
 
 // ─── ALARM BANNER ───────────────────────────────────────────────────────
 function AlarmBanner({ alarms, onAcknowledge }) {
   if (alarms.length === 0) return null;
-
   return (
-    <div className="border border-[#00c895]/28 border-l-2 border-l-white bg-[#ffffff] px-3 py-2">
+    <div className="border border-[#ef4444]/40 border-l-2 border-l-[#ef4444] bg-white px-3 py-2">
       {alarms.map((alarm, i) => (
         <div key={i} className="flex items-center gap-3 t-label font-mono py-0.5">
-          <span className="text-[#052e22] font-bold">[ALARM]</span>
+          <span className="text-[#ef4444] font-bold">[ALARM]</span>
           <span className="text-[#052e22]/90 flex-1 truncate">{alarm.message}</span>
           <span className="text-[#052e22]/55">
             {alarm.timestamp ? new Date(alarm.timestamp).toLocaleTimeString('en-GB', { hour12: false }) : ''}
@@ -31,83 +48,71 @@ function AlarmBanner({ alarms, onAcknowledge }) {
   );
 }
 
-// ─── SPARKLINE ──────────────────────────────────────────────────────────
-function Sparkline({ values, width = 100, height = 24 }) {
-  if (!values || values.length < 2) {
-    return <svg width={width} height={height} />;
-  }
+// ─── TIME-SERIES PLOT (with target line + normal band) ───────────────────
+function TimeSeriesPlot({ values, target, lo, hi, color, width = 150, height = 44 }) {
+  if (!values || values.length < 2) return <svg width={width} height={height} />;
 
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  // Scale to include the band so the target/limits are always visible.
+  const dataMin = Math.min(...values, lo);
+  const dataMax = Math.max(...values, hi);
+  const pad = (dataMax - dataMin) * 0.12 || 1;
+  const min = dataMin - pad;
+  const max = dataMax + pad;
   const range = max - min || 1;
 
-  const points = values.map((v, i) => {
-    const x = (i / (values.length - 1)) * width;
-    const y = height - ((v - min) / range) * (height - 4) - 2;
-    return `${x},${y}`;
-  }).join(' ');
+  const y = (v) => height - ((v - min) / range) * height;
+  const x = (i) => (i / (values.length - 1)) * width;
+
+  const line = values.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+  const bandTop = y(hi);
+  const bandBottom = y(lo);
+  const targetY = y(target);
 
   return (
     <svg width={width} height={height} className="overflow-visible">
-      <polyline
-        points={points}
-        fill="none"
-        stroke="rgba(255,255,255,0.5)"
-        strokeWidth="1"
-        strokeLinejoin="round"
-      />
+      {/* normal band */}
+      <rect x={0} y={bandTop} width={width} height={Math.max(0, bandBottom - bandTop)} fill="#00c895" opacity="0.08" />
+      {/* target setpoint (dashed) */}
+      <line x1={0} y1={targetY} x2={width} y2={targetY} stroke="#052e22" strokeOpacity="0.28" strokeDasharray="3 3" strokeWidth="1" />
+      {/* series */}
+      <polyline points={line} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      {/* latest point */}
+      <circle cx={x(values.length - 1)} cy={y(values[values.length - 1])} r="2" fill={color} />
     </svg>
   );
 }
 
 // ─── SENSOR CARD ────────────────────────────────────────────────────────
-function SensorCard({ sensorId, value, unit, status, history }) {
+function SensorCard({ sensor }) {
+  const tgt = SENSOR_TARGETS[sensor.sensorId] || { target: sensor.value, lo: -Infinity, hi: Infinity };
+  const grade = gradeVsBand(sensor.value, tgt.lo, tgt.hi);
+  const color = STATUS_COLORS[grade];
+
   return (
-    <div className="border border-[#00c895]/28 bg-[#ffffff] p-2 flex flex-col gap-1">
+    <div className="border border-[#00c895]/28 bg-white p-2.5 flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
-        <span className="t-label font-mono text-[#052e22]/65">{sensorId}</span>
-        <span className={`t-label font-mono uppercase px-1 border ${
-          status === 'normal' ? 'border-[#00c895]/28 text-[#052e22]/65' :
-          status === 'warning' ? 'border-[#00c895]/48 text-[#052e22]/88' :
-          'border-[#00c895] text-[#052e22]'
-        }`}>
-          {status}
+        <div className="flex flex-col">
+          <span className="t-label font-mono text-[#052e22]/72">{sensor.sensorId}</span>
+          <span className="t-label text-[#052e22]/45">{sensor.location}</span>
+        </div>
+        <span className="t-label font-mono uppercase px-1.5 py-0.5" style={{ color, border: `1px solid ${color}55` }}>
+          {grade === 'good' ? 'normal' : grade === 'warn' ? 'watch' : 'alarm'}
         </span>
       </div>
       <div className="flex items-baseline gap-1">
-        <span className="text-2xl font-mono text-[#052e22]">{typeof value === 'number' ? value.toFixed(1) : value}</span>
-        <span className="t-label font-mono text-[#052e22]/55">{unit}</span>
+        <span className="text-2xl font-mono" style={{ color }}>
+          {typeof sensor.value === 'number' ? sensor.value.toFixed(1) : sensor.value}
+        </span>
+        <span className="t-label font-mono text-[#052e22]/55">{sensor.unit}</span>
+        <span className="t-label font-mono text-[#052e22]/40 ml-auto">
+          sp {tgt.target}{sensor.unit}
+        </span>
       </div>
-      <Sparkline values={history} width={120} height={20} />
-    </div>
-  );
-}
-
-// ─── PROCESS FLOW (TEXT) ────────────────────────────────────────────────
-function ProcessFlow({ processValues }) {
-  const stages = [
-    { id: 'hopper', label: 'HOPPER' },
-    { id: 'conveyorA', label: 'CONV-A' },
-    { id: 'pickZone', label: 'PICK' },
-    { id: 'conveyorB', label: 'CONV-B' },
-    { id: 'packing', label: 'PACK' },
-  ];
-
-  return (
-    <div className="border border-[#00c895]/28 bg-[#ffffff] p-3">
-      <div className="t-label text-[#052e22]/65 uppercase tracking-wider mb-2">Process Flow</div>
-      <div className="flex items-center justify-between font-mono t-label">
-        {stages.map((stage, i) => (
-          <div key={stage.id} className="flex items-center">
-            <div className="flex flex-col items-center">
-              <span className="text-[#052e22]/88">{stage.label}</span>
-              <span className="t-label text-[#052e22]/55 mt-0.5">{processValues[stage.id] || '—'}</span>
-            </div>
-            {i < stages.length - 1 && (
-              <span className="text-[#052e22]/45 mx-2">→</span>
-            )}
-          </div>
-        ))}
+      <TimeSeriesPlot values={sensor.history} target={tgt.target} lo={tgt.lo} hi={tgt.hi} color={color} width={150} height={40} />
+      <div className="flex justify-between t-label font-mono text-[#052e22]/35">
+        <span>{tgt.lo}</span>
+        <span className="text-[#052e22]/45">normal band</span>
+        <span>{tgt.hi}</span>
       </div>
     </div>
   );
@@ -116,20 +121,20 @@ function ProcessFlow({ processValues }) {
 // ─── CONVEYOR METRICS ───────────────────────────────────────────────────
 function ConveyorMetrics({ speed, itemsInTransit, itemsProcessed }) {
   return (
-    <div className="flex gap-0">
-      <div className="flex-1 border border-[#00c895]/28 px-3 py-2">
-        <div className="t-label text-[#052e22]/55 uppercase tracking-wider">Speed</div>
-        <span className="text-2xl font-mono text-[#052e22]">{speed.toFixed(1)}</span>
-        <span className="t-label font-mono text-[#052e22]/55 ml-1">m/s</span>
-      </div>
-      <div className="flex-1 border border-[#00c895]/28 px-3 py-2">
-        <div className="t-label text-[#052e22]/55 uppercase tracking-wider">In Transit</div>
-        <span className="text-2xl font-mono text-[#052e22]">{itemsInTransit}</span>
-      </div>
-      <div className="flex-1 border border-[#00c895]/28 px-3 py-2">
-        <div className="t-label text-[#052e22]/55 uppercase tracking-wider">Throughput</div>
-        <span className="text-2xl font-mono text-[#052e22]">{itemsProcessed.toLocaleString()}</span>
-        <span className="t-label font-mono text-[#052e22]/55 ml-1">today</span>
+    <div className="grid grid-cols-3 gap-2">
+      <Metric label="Belt Speed" value={speed.toFixed(2)} unit="m/s" />
+      <Metric label="In Transit" value={itemsInTransit} unit="pcs" />
+      <Metric label="Throughput" value={itemsProcessed.toLocaleString()} unit="today" />
+    </div>
+  );
+}
+function Metric({ label, value, unit }) {
+  return (
+    <div className="border border-[#00c895]/28 bg-white px-3 py-2">
+      <div className="t-label text-[#052e22]/55 uppercase tracking-wider">{label}</div>
+      <div className="flex items-baseline gap-1 mt-0.5">
+        <span className="text-2xl font-mono text-[#052e22]">{value}</span>
+        <span className="t-label font-mono text-[#052e22]/55">{unit}</span>
       </div>
     </div>
   );
@@ -137,77 +142,52 @@ function ConveyorMetrics({ speed, itemsInTransit, itemsProcessed }) {
 
 // ─── MAIN TAB ───────────────────────────────────────────────────────────
 export default function ScadaTab() {
-  const events = useSubscription(SCADA_PREFIX);
+  const events = useSubscription(SCADA_PREFIX, 120);
   const publish = usePublish();
 
   const [alarms, setAlarms] = useState([]);
-  const [sensors, setSensors] = useState({
-    'TEMP-01': { sensorId: 'TEMP-01', sensorType: 'Temperature', value: 72.4, unit: '°C', status: 'normal', history: [71, 71.5, 72, 72.2, 72.4] },
-    'PRES-01': { sensorId: 'PRES-01', sensorType: 'Pressure', value: 2.4, unit: 'bar', status: 'normal', history: [2.3, 2.35, 2.4, 2.38, 2.4] },
-    'VIB-01': { sensorId: 'VIB-01', sensorType: 'Vibration', value: 0.12, unit: 'mm/s', status: 'normal', history: [0.1, 0.11, 0.12, 0.11, 0.12] },
-    'FLOW-01': { sensorId: 'FLOW-01', sensorType: 'Flow Rate', value: 145.2, unit: 'L/min', status: 'normal', history: [144, 145, 145.5, 144.8, 145.2] },
-    'HUMID-01': { sensorId: 'HUMID-01', sensorType: 'Humidity', value: 45.8, unit: '%RH', status: 'normal', history: [45, 45.2, 45.5, 45.7, 45.8] },
-    'RPM-01': { sensorId: 'RPM-01', sensorType: 'Motor Speed', value: 1480, unit: 'RPM', status: 'normal', history: [1475, 1478, 1480, 1479, 1480] },
-  });
+  const [sensors, setSensors] = useState(seedSensors);
   const [conveyorSpeed, setConveyorSpeed] = useState(1.2);
-  const [itemsInTransit, setItemsInTransit] = useState(5);
+  const [itemsInTransit, setItemsInTransit] = useState(3);
   const [itemsProcessed, setItemsProcessed] = useState(2847);
-  const [processValues, setProcessValues] = useState({
-    hopper: '85%',
-    conveyorA: '1.2 m/s',
-    pickZone: '72.4°C',
-    conveyorB: '1.2 m/s',
-    packing: '142 u/hr',
-  });
 
-  // Process events
+  // Process the newest event (payload lives under event.payload).
   useEffect(() => {
     if (events.length === 0) return;
     const latest = events[0];
+    const p = latest.payload || {};
     const { topic } = latest;
 
-    if (topic?.includes('sensor/reading')) {
-      const { sensorId, sensorType, value, unit, status } = latest;
-      if (sensorId) {
-        setSensors((prev) => {
-          const existing = prev[sensorId] || { sensorId, sensorType: sensorType || 'Unknown', value: 0, unit: unit || '', status: 'normal', history: [] };
-          const history = [...existing.history, value].slice(-MAX_SPARKLINE_POINTS);
-          return { ...prev, [sensorId]: { ...existing, sensorType: sensorType || existing.sensorType, value, unit: unit || existing.unit, status: status || existing.status, history } };
-        });
-      }
+    if (topic?.includes('sensor/reading') && p.sensorId) {
+      setSensors((prev) => {
+        const existing = prev[p.sensorId] || {
+          sensorId: p.sensorId, type: p.type, value: p.value, unit: p.unit, location: p.location, history: [],
+        };
+        const history = [...existing.history, p.value].slice(-MAX_POINTS);
+        return { ...prev, [p.sensorId]: { ...existing, value: p.value, unit: p.unit || existing.unit, location: p.location || existing.location, history } };
+      });
     }
 
     if (topic?.includes('alarm/raised')) {
-      setAlarms((prev) => [latest, ...prev].slice(0, 10));
+      setAlarms((prev) => [{ ...p, timestamp: latest.timestamp }, ...prev].slice(0, 6));
     }
-
     if (topic?.includes('alarm/acknowledged')) {
-      setAlarms((prev) => prev.filter((a) => a.alarmCode !== latest.alarmCode));
+      setAlarms((prev) => prev.filter((a) => a.alarmCode !== p.alarmCode));
     }
-
     if (topic?.includes('conveyor/status')) {
-      if (latest.speed !== undefined) setConveyorSpeed(latest.speed);
-      if (latest.itemsInTransit !== undefined) setItemsInTransit(latest.itemsInTransit);
-      if (latest.itemsProcessed !== undefined) setItemsProcessed(latest.itemsProcessed);
-      setProcessValues((pv) => ({
-        ...pv,
-        conveyorA: `${(latest.speed || conveyorSpeed).toFixed(1)} m/s`,
-        conveyorB: `${(latest.speed || conveyorSpeed).toFixed(1)} m/s`,
-      }));
+      if (p.speed !== undefined) setConveyorSpeed(p.speed);
+      if (p.itemsInTransit !== undefined) setItemsInTransit(p.itemsInTransit);
+      setItemsProcessed((n) => n + (p.itemsInTransit || 0));
     }
+  }, [events]);
 
-    if (topic?.includes('process/value')) {
-      if (latest.section && latest.displayValue) {
-        setProcessValues((pv) => ({ ...pv, [latest.section]: latest.displayValue }));
-      }
-    }
-  }, [events.length]);
-
-  // ACK handler
   const handleAcknowledge = useCallback((alarm) => {
     publish(SCADA.ALARM_ACKNOWLEDGED, {
-      alarmCode: alarm.alarmCode,
-      acknowledgedAt: new Date().toISOString(),
+      eventId: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      source: 'scada-operator',
+      correlationId: null,
+      payload: { alarmCode: alarm.alarmCode, acknowledgedAt: new Date().toISOString() },
     });
     setAlarms((prev) => prev.filter((a) => a.alarmCode !== alarm.alarmCode));
   }, [publish]);
@@ -215,27 +195,20 @@ export default function ScadaTab() {
   const sensorList = Object.values(sensors);
 
   return (
-    <div className="h-full p-3 overflow-y-auto flex flex-col gap-2 bg-[#ecfdf5]">
-      {/* Alarm Banner */}
+    <div className="h-full p-3 overflow-y-auto flex flex-col gap-2.5 bg-[#ecfdf5]">
       <AlarmBanner alarms={alarms} onAcknowledge={handleAcknowledge} />
 
-      {/* Sensor Grid */}
-      <div className="grid grid-cols-3 gap-2">
-        {sensorList.slice(0, 6).map((sensor) => (
-          <SensorCard key={sensor.sensorId} {...sensor} />
+      <div className="grid grid-cols-3 gap-2.5">
+        {sensorList.map((sensor) => (
+          <SensorCard key={sensor.sensorId} sensor={sensor} />
         ))}
       </div>
 
-      {/* Process Flow */}
-      <ProcessFlow processValues={processValues} />
-
-      {/* Conveyor Metrics */}
       <ConveyorMetrics speed={conveyorSpeed} itemsInTransit={itemsInTransit} itemsProcessed={itemsProcessed} />
 
-      {/* Live indicator */}
       <div className="flex items-center gap-2 px-1">
-        <div className="w-1.5 h-1.5 bg-[#00c895] animate-pulse" />
-        <span className="t-label font-mono text-[#052e22]/55">LIVE — {events.length} events captured</span>
+        <div className="w-1.5 h-1.5 bg-[#00c895] animate-live" />
+        <span className="t-label font-mono text-[#052e22]/55">LIVE — {events.length} SCADA events captured</span>
       </div>
     </div>
   );

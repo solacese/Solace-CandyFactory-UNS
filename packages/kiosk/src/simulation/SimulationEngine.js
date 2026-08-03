@@ -16,6 +16,9 @@ import {
   nextWorkOrderId,
   randomCustomer,
   randomSweets,
+  INVENTORY_START,
+  INVENTORY_CAPACITY,
+  stockLevel,
 } from '../constants/demo-data.js';
 
 // ─── Helpers ────────────────────────────────────────────────────
@@ -67,6 +70,14 @@ export class SimulationEngine {
     this._sensorIndex = 0;
     this._oeeValues = { availability: 82, performance: 78, quality: 95 };
     this._conveyorSpeed = 1.2;
+
+    // Live factory KPIs (drift over time, published on the OEE cadence).
+    this._kpis = { unitsPerHour: 148, uptime: 99.1, cycleTime: 4.1, defectRate: 0.9 };
+
+    // Per-sweet on-hand inventory. Decremented as gummies are picked,
+    // topped up occasionally so it never fully drains during a booth day.
+    this._inventory = {};
+    for (const s of SWEETS) this._inventory[s.id] = INVENTORY_START;
     this._currentArmAngles = [0, -30, 45, 0, 0, 0]; // Default resting position
     this._processingOrders = new Map(); // correlationId -> startedAt (watchdog)
 
@@ -111,6 +122,7 @@ export class SimulationEngine {
     this._startBackgroundSensors();
     this._startConveyorStatus();
     this._startOEE();
+    this._startInventory();
     this._startAutoDemo();
     this._startWatchdog();
   }
@@ -324,6 +336,7 @@ export class SimulationEngine {
     const correlationId = data.correlationId || uuid();
     const workOrderId = data.payload?.workOrderId || 'WO-UNKNOWN';
     const items = data.payload?.items || [];
+    const customer = data.payload?.customer || null;
 
     // Expand line-items into INDIVIDUAL UNITS — every gummy is its own
     // event-driven transaction, sharing the order correlationId + a unique itemId.
@@ -335,13 +348,14 @@ export class SimulationEngine {
         MES.PRODUCTION_STARTED,
         envelope('sim-mes', correlationId, {
           workOrderId,
+          customer,
           lineItemCount: items.length,
           unitCount: units.length,
         })
       );
 
       // Process one unit at a time
-      this._processUnitsSequentially(units, correlationId, workOrderId, 0);
+      this._processUnitsSequentially(units, correlationId, workOrderId, 0, 0, customer);
     }, 1000);
   }
 
@@ -366,18 +380,34 @@ export class SimulationEngine {
     return units;
   }
 
-  _processUnitsSequentially(units, correlationId, workOrderId, i) {
+  _processUnitsSequentially(units, correlationId, workOrderId, i, packaged = 0, customer = null) {
     if (!this._running) return;
     const total = units.length;
 
     if (i >= total) {
-      // All units done → production complete → work order completed
+      // All units done → production complete → order-completed summary →
+      // work order completed (ERP).
       this._setTimeout(() => {
         publishMessage(
           MES.PRODUCTION_COMPLETE,
           envelope('sim-mes', correlationId, {
             workOrderId,
             unitsProduced: total,
+            unitsPackaged: packaged,
+          })
+        );
+
+        // Explicit MES order-completed summary — powers the detailed log line
+        // "packaged N/M — ORDER COMPLETE".
+        publishMessage(
+          MES.ORDER_COMPLETED,
+          envelope('sim-mes', correlationId, {
+            workOrderId,
+            unitsPackaged: packaged,
+            totalUnits: total,
+            orderComplete: true,
+            customer,
+            items: unitsToItems(units),
           })
         );
 
@@ -388,6 +418,7 @@ export class SimulationEngine {
               workOrderId,
               status: 'completed',
               unitsProduced: total,
+              unitsPackaged: packaged,
               // Echo the items on completion so the ERP view always has them
               // even if the created/released events have scrolled out of the
               // subscriber's buffer (DIRECT messaging has no replay).
@@ -409,7 +440,12 @@ export class SimulationEngine {
       unitIndex: unit.unitIndex,
       totalUnits: total,
       sweetType: unit.sweetType,
+      sweetName: sweet.name,
+      packagedSoFar: packaged,
     };
+
+    // Draw this unit's gummy from stock → live inventory update.
+    this._consumeStock(unit.sweetType);
 
     // MES: step-begun — one transaction per unit
     publishMessage(
@@ -474,6 +510,7 @@ export class SimulationEngine {
 
         this._setTimeout(() => {
           const pass = Math.random() < 0.97;
+          const packagedNext = packaged + (pass ? 1 : 0);
           publishMessage(
             MES.QUALITY_CHECK,
             envelope('sim-mes', correlationId, {
@@ -481,10 +518,14 @@ export class SimulationEngine {
               result: pass ? 'pass' : 'fail',
               confidence: pass ? 0.97 + Math.random() * 0.03 : 0.4 + Math.random() * 0.3,
               checkType: 'per-unit-weight',
+              // Packaged running total after this unit — lets the MES log say
+              // "packaged N/M" without recomputing.
+              packagedSoFar: packagedNext,
+              totalUnits: total,
             })
           );
 
-          this._processUnitsSequentially(units, correlationId, workOrderId, i + 1);
+          this._processUnitsSequentially(units, correlationId, workOrderId, i + 1, packagedNext, customer);
         }, 350);
       }, 2400);
     }, 400);
@@ -636,6 +677,13 @@ export class SimulationEngine {
           this._oeeValues.quality) /
         10000;
 
+      // Drift the headline KPIs a touch so they read as live, staying in
+      // believable bounds. Cycle + defect are "lower is better".
+      this._kpis.unitsPerHour = clamp(this._kpis.unitsPerHour + (Math.random() - 0.5) * 4, 120, 165);
+      this._kpis.uptime = clamp(this._kpis.uptime + (Math.random() - 0.5) * 0.4, 96.5, 99.9);
+      this._kpis.cycleTime = clamp(this._kpis.cycleTime + (Math.random() - 0.5) * 0.3, 3.4, 5.2);
+      this._kpis.defectRate = clamp(this._kpis.defectRate + (Math.random() - 0.5) * 0.25, 0.2, 2.4);
+
       publishMessage(
         MES.OEE_UPDATE,
         envelope('sim-mes', null, {
@@ -643,9 +691,72 @@ export class SimulationEngine {
           performance: +this._oeeValues.performance.toFixed(1),
           quality: +this._oeeValues.quality.toFixed(1),
           oee: +oee.toFixed(1),
+          // Headline KPIs travel on the same event so MES can color them
+          // against their targets in real time.
+          unitsPerHour: Math.round(this._kpis.unitsPerHour),
+          uptime: +this._kpis.uptime.toFixed(1),
+          cycleTime: +this._kpis.cycleTime.toFixed(1),
+          defectRate: +this._kpis.defectRate.toFixed(1),
         })
       );
     }, 5000);
+  }
+
+  // ─── Background: Inventory Levels ────────────────────────────
+
+  _startInventory() {
+    // Emit the full inventory snapshot at start and on a slow cadence, and
+    // gently restock so a busy booth never bottoms out.
+    this._publishInventory();
+    this._setInterval(() => {
+      if (!this._running) return;
+      // Slow organic restock (a pallet arrives now and then).
+      for (const s of SWEETS) {
+        if (Math.random() < 0.4) {
+          this._inventory[s.id] = clamp(
+            this._inventory[s.id] + Math.floor(Math.random() * 25),
+            0,
+            INVENTORY_CAPACITY
+          );
+        }
+      }
+      this._publishInventory();
+    }, 8000);
+  }
+
+  /** Publish one inventory/level event per sweet with its bucketed level. */
+  _publishInventory() {
+    for (const s of SWEETS) {
+      const onHand = this._inventory[s.id];
+      publishMessage(
+        ERP.INVENTORY_LEVEL,
+        envelope('sim-erp', null, {
+          sweetType: s.id,
+          sweetName: s.name,
+          onHand,
+          capacity: INVENTORY_CAPACITY,
+          level: stockLevel(onHand),
+        })
+      );
+    }
+  }
+
+  /** Decrement stock as a unit is picked, and republish that sweet's level. */
+  _consumeStock(sweetType) {
+    if (this._inventory[sweetType] === undefined) return;
+    this._inventory[sweetType] = clamp(this._inventory[sweetType] - 1, 0, INVENTORY_CAPACITY);
+    const onHand = this._inventory[sweetType];
+    const sweet = SWEETS.find((s) => s.id === sweetType);
+    publishMessage(
+      ERP.INVENTORY_LEVEL,
+      envelope('sim-erp', null, {
+        sweetType,
+        sweetName: sweet?.name || sweetType,
+        onHand,
+        capacity: INVENTORY_CAPACITY,
+        level: stockLevel(onHand),
+      })
+    );
   }
 
   // ─── Auto-Demo Mode ──────────────────────────────────────────

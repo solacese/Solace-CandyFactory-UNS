@@ -38,6 +38,45 @@ export const ALARM_TYPES = [
 
 export const PRIORITIES = ['high', 'medium', 'low'];
 
+// ─── Inventory ──────────────────────────────────────────────────
+// Starting on-hand stock per sweet (units). The simulation decrements
+// these as gummies are picked and occasionally restocks.
+export const INVENTORY_START = 500;
+export const INVENTORY_CAPACITY = 600;
+
+// Stock-level buckets as a fraction of capacity.
+export function stockLevel(onHand, capacity = INVENTORY_CAPACITY) {
+  if (onHand <= 0) return 'unavailable';
+  const frac = onHand / capacity;
+  if (frac >= 0.4) return 'high';
+  if (frac >= 0.15) return 'medium';
+  return 'low';
+}
+
+// ─── MES / SCADA targets ────────────────────────────────────────
+// Each target says which direction is "good" so a live value can be
+// colored green / orange / red against it.
+//   higherIsBetter: value >= target is green.
+//   lowerIsBetter:  value <= target is green.
+// `warn` is the fraction of slack before flipping orange→red.
+export const MES_TARGETS = {
+  unitsPerHour: { target: 150, dir: 'higher', warnBand: 0.1, unit: 'u/h' },
+  uptime: { target: 99, dir: 'higher', warnBand: 0.02, unit: '%' },
+  cycleTime: { target: 4.0, dir: 'lower', warnBand: 0.15, unit: 'sec' },
+  defectRate: { target: 1.0, dir: 'lower', warnBand: 0.5, unit: '%' },
+};
+
+// SCADA sensor setpoints + acceptable band. `target` is the setpoint;
+// [lo, hi] is the normal operating band used for the plot + coloring.
+export const SENSOR_TARGETS = {
+  'TEMP-01': { target: 23.5, lo: 21, hi: 26 },
+  'PRESS-01': { target: 1.2, lo: 1.0, hi: 1.5 },
+  'VIBR-01': { target: 0.6, lo: 0, hi: 1.5 },
+  'WEIGHT-01': { target: 125, lo: 100, hi: 150 },
+  'HUMID-01': { target: 45, lo: 38, hi: 55 },
+  'SPEED-01': { target: 1.2, lo: 1.0, hi: 1.5 },
+};
+
 // Work order counter
 let woSeq = 41;
 export function nextWorkOrderId() {

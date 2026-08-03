@@ -240,7 +240,7 @@ function TopicTree({ recentActivity }) {
       </button>
       {!collapsed && (
         <div className="px-4 pb-3 font-mono t-label leading-relaxed">
-          <div className="text-[#052e22]/45">haribot/</div>
+          <div className="text-[#052e22]/45">candyfactory/</div>
 
           {/* Enterprise — company-wide business systems (L5, L4) */}
           <div className="text-[#052e22]/45 pl-2">├─ enterprise/</div>
