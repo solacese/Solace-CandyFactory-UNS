@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useSubscription, usePublish } from '../../broker/useSolace.js';
 import { MARKETPLACE, WILDCARDS } from '../../constants/topics.js';
 import { SWEETS } from '../../constants/demo-data.js';
+import { LEVEL_COLORS } from '../../constants/theme.js';
 
 // ─── Chatbot Flow Definition ─────────────────────────────────────────
 // Scripted decision tree — no LLM needed. Instant, reliable, impressive.
@@ -74,6 +75,19 @@ function getConfirmPrompt(basket) {
 export default function MarketplaceTab() {
   const publish = usePublish();
   const orders = useSubscription(WILDCARDS.ORDERS);
+  const inventoryEvents = useSubscription(WILDCARDS.ERP, 200);
+
+  // Live per-sweet stock level from erp/inventory/level events (latest wins).
+  const inventory = useMemo(() => {
+    const map = {};
+    // walk oldest-first so the newest reading for each sweet ends up applied
+    for (const e of [...inventoryEvents].reverse()) {
+      if (!e.topic?.includes('inventory/level')) continue;
+      const p = e.payload || {};
+      if (p.sweetType) map[p.sweetType] = { onHand: p.onHand, level: p.level };
+    }
+    return map;
+  }, [inventoryEvents]);
 
   const [messages, setMessages] = useState([]);
   const [step, setStep] = useState(STEPS.GREETING);
@@ -205,7 +219,39 @@ export default function MarketplaceTab() {
         }, 300);
         break;
       }
+      // ── Free-text at choice steps: interpret loosely so the box always works ──
+      case STEPS.EVENT_TYPE: {
+        const match = EVENT_TYPES.find((e) => value.toLowerCase().includes(e.id) || value.toLowerCase().includes(e.label.toLowerCase()));
+        if (match) {
+          handleChoice({ id: match.id, label: `${match.icon} ${match.label}` });
+        } else {
+          setTimeout(() => addBotMessage("Tell me the occasion — a wedding, party, birthday, or corporate event? You can tap a button or just type it."), 200);
+        }
+        break;
+      }
+      case STEPS.COLORS: {
+        const v = value.toLowerCase();
+        const theme = COLOR_THEMES.find((c) => v.includes(c.id) || v.includes(c.label.toLowerCase()))
+          || (/(gold|classic)/.test(v) ? COLOR_THEMES[0] : /(bright|colour|color)/.test(v) ? COLOR_THEMES[1] : /(mix|every|all)/.test(v) ? COLOR_THEMES[2] : null);
+        if (theme) {
+          handleChoice({ id: theme.id, label: theme.label });
+        } else {
+          setTimeout(() => addBotMessage("Gold & Classic, Bright & Colorful, or a bit of everything?"), 200);
+        }
+        break;
+      }
+      case STEPS.CONFIRM: {
+        if (/^(y|yes|ok|sure|place|confirm)/i.test(value)) handleChoice({ id: 'yes', label: 'Yes, place order' });
+        else if (/^(n|no|restart|start over|cancel)/i.test(value)) handleChoice({ id: 'no', label: 'Start over' });
+        else setTimeout(() => addBotMessage("Shall I place this order? (yes / start over)"), 200);
+        break;
+      }
+      case STEPS.DONE: {
+        resetChat();
+        break;
+      }
       default:
+        setTimeout(() => addBotMessage("I'm here to help build your sweet order — tap a button above or tell me what you'd like."), 200);
         break;
     }
   }
@@ -289,45 +335,59 @@ export default function MarketplaceTab() {
           <div ref={chatEndRef} />
         </div>
 
-        {/* Input */}
-        {(step === STEPS.GUESTS || step === STEPS.NAME || step === STEPS.EMAIL) && (
-          <form onSubmit={handleSubmitInput} className="px-4 py-3 border-t border-[#00c895]/28 flex gap-2">
-            <input
-              ref={inputRef}
-              type={step === STEPS.GUESTS ? 'number' : step === STEPS.EMAIL ? 'email' : 'text'}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={
-                step === STEPS.GUESTS ? 'Number of guests...' :
-                step === STEPS.NAME ? 'Your name...' :
-                step === STEPS.EMAIL ? 'you@company.com' : '...'
-              }
-              autoFocus
-              className="flex-1 bg-white border border-[#00c895]/28 text-[#052e22] font-mono px-3 py-2 t-data placeholder-[#052e22]/50 focus:outline-none focus:border-[#00c895]"
-            />
-            <button
-              type="submit"
-              className="px-4 py-2 bg-[#00c895] text-white font-bold t-label uppercase tracking-wider"
-            >
-              Send
-            </button>
-          </form>
-        )}
+        {/* Input — always available, so visitors can type free text at any step */}
+        <form onSubmit={handleSubmitInput} className="px-4 py-3 border-t border-[#00c895]/28 flex gap-2">
+          <input
+            ref={inputRef}
+            type={step === STEPS.GUESTS ? 'number' : step === STEPS.EMAIL ? 'email' : 'text'}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={
+              step === STEPS.GUESTS ? 'Number of guests…' :
+              step === STEPS.NAME ? 'Your name…' :
+              step === STEPS.EMAIL ? 'you@company.com' :
+              step === STEPS.EVENT_TYPE ? 'Type your occasion, or tap a choice…' :
+              step === STEPS.COLORS ? 'Describe the vibe, or tap a choice…' :
+              step === STEPS.CONFIRM ? 'yes / start over…' :
+              step === STEPS.DONE ? 'Type anything to start a new order…' :
+              'Type a message…'
+            }
+            autoFocus
+            className="flex-1 bg-white border border-[#00c895]/28 text-[#052e22] font-mono px-3 py-2 t-data placeholder-[#052e22]/50 focus:outline-none focus:border-[#00c895]"
+          />
+          <button
+            type="submit"
+            className="px-4 py-2 bg-[#00c895] text-white font-bold t-label uppercase tracking-wider hover:bg-[#00b285] transition-colors"
+          >
+            Send
+          </button>
+        </form>
       </div>
 
-      {/* RIGHT — Recent Orders */}
-      <div className="w-[300px] shrink-0 flex flex-col border-l border-[#00c895]/28">
+      {/* RIGHT — Inventory + Recent Orders */}
+      <div className="w-[300px] shrink-0 flex flex-col border-l border-[#00c895]/28 min-h-0">
+        {/* Live inventory */}
+        <div className="px-3 py-2 border-b border-[#00c895]/28 flex items-center justify-between">
+          <span className="t-label uppercase tracking-widest text-[#052e22]/65 font-mono">Candy Inventory</span>
+          <span className="w-1.5 h-1.5 bg-[#00c895] animate-live" />
+        </div>
+        <div className="px-3 py-2 border-b border-[#00c895]/28 flex flex-col gap-2">
+          {SWEETS.map((s) => (
+            <InventoryRow key={s.id} sweet={s} info={inventory[s.id]} />
+          ))}
+        </div>
+
+        {/* Orders */}
         <div className="px-3 py-2 border-b border-[#00c895]/28 flex items-center justify-between">
           <span className="t-label uppercase tracking-widest text-[#052e22]/65 font-mono">Orders</span>
           <span className="t-label font-mono text-[#052e22]/45">{orders.length}</span>
         </div>
-
         {orders.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-[#052e22]/45 t-label font-mono">
             NO ORDERS YET
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto divide-y divide-white/5">
+          <div className="flex-1 overflow-y-auto divide-y divide-[#00c895]/10">
             {orders.map((order, idx) => (
               <OrderRow key={order.eventId || idx} event={order} />
             ))}
@@ -357,6 +417,29 @@ function ChatBubble({ message }) {
         )}
         {message.text}
       </div>
+    </div>
+  );
+}
+
+const LEVEL_LABEL = { high: 'HIGH', medium: 'MEDIUM', low: 'LOW', unavailable: 'OUT' };
+
+function InventoryRow({ sweet, info }) {
+  const level = info?.level || 'unavailable';
+  const onHand = info?.onHand;
+  const color = LEVEL_COLORS[level] || LEVEL_COLORS.unavailable;
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-base leading-none">{sweet.emoji}</span>
+      <span className="t-label text-[#052e22] font-medium truncate">{sweet.name}</span>
+      <span className="t-data font-mono text-[#052e22]/72 ml-auto tabular-nums">
+        {onHand == null ? '—' : onHand}
+      </span>
+      <span
+        className="t-label font-mono px-1.5 py-0.5 rounded shrink-0 w-[68px] text-center"
+        style={{ color, backgroundColor: `${color}1f`, border: `1px solid ${color}55` }}
+      >
+        {LEVEL_LABEL[level]}
+      </span>
     </div>
   );
 }

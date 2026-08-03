@@ -36,3 +36,52 @@ export const TOPIC_COLORS = {
 };
 
 export const TOPIC_CATEGORIES = ['orders', 'erp', 'mes', 'scada', 'arm', 'hitl'];
+
+// ─── Status colors (KPI / sensor vs target) ────────────────────
+// Shared by MES stats and SCADA sensors so "on-target / warning / bad"
+// reads the same everywhere.
+export const STATUS_COLORS = {
+  good: '#00c895',   // Solace green — on or better than target
+  warn: '#f59e0b',   // amber — drifting toward the limit
+  bad: '#ef4444',    // red — out of target
+  idle: '#052e22',   // neutral ink
+};
+
+/**
+ * Grade a live value against a target.
+ * @param {number} value  live reading
+ * @param {number} target target/setpoint
+ * @param {'higher'|'lower'} dir which direction is "good"
+ * @param {number} warnBand fractional slack (of target) before red
+ * @returns {'good'|'warn'|'bad'}
+ */
+export function gradeVsTarget(value, target, dir = 'higher', warnBand = 0.1) {
+  if (value == null || target == null || Number.isNaN(value)) return 'warn';
+  const slack = Math.abs(target) * warnBand;
+  if (dir === 'higher') {
+    if (value >= target) return 'good';
+    if (value >= target - slack) return 'warn';
+    return 'bad';
+  }
+  // lower is better
+  if (value <= target) return 'good';
+  if (value <= target + slack) return 'warn';
+  return 'bad';
+}
+
+/** Grade a value against a [lo, hi] normal band (SCADA sensors). */
+export function gradeVsBand(value, lo, hi) {
+  if (value == null || Number.isNaN(value)) return 'warn';
+  if (value >= lo && value <= hi) return 'good';
+  const margin = (hi - lo) * 0.15 || 1;
+  if (value >= lo - margin && value <= hi + margin) return 'warn';
+  return 'bad';
+}
+
+/** Level → color for inventory badges (marketplace). */
+export const LEVEL_COLORS = {
+  high: '#00c895',
+  medium: '#f59e0b',
+  low: '#ef4444',
+  unavailable: '#94a3b8',
+};
