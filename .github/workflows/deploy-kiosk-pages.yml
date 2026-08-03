@@ -1,0 +1,61 @@
+name: Deploy kiosk to GitHub Pages
+
+# Builds the kiosk in sim-only loopback mode (no Solace broker) and publishes
+# the static bundle to GitHub Pages. The full ISA-95 event cascade runs in the
+# browser via src/broker/connection.loopback.js.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/kiosk/**'
+      - '.github/workflows/deploy-kiosk-pages.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; let an in-progress run finish rather than cancel it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Install the whole workspace so the kiosk's hoisted deps resolve.
+      - run: npm ci
+
+      # Base must match the Pages URL path: https://<owner>.github.io/<repo>/
+      - name: Build kiosk (loopback, sim-only)
+        working-directory: packages/kiosk
+        env:
+          VITE_LOOPBACK: '1'
+          VITE_BASE: /${{ github.event.repository.name }}/
+        run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/kiosk/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

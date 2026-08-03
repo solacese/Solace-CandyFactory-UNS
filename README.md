@@ -1,6 +1,8 @@
-# Haribot UNS Demo
+# Solace CandyFactory UNS
 
 A live customer-facing demo for Solace: manufacturing + Unified Namespace (UNS) + robotics. Demonstrates how **Solace Agent Mesh (SAM)** lets AI agents observe and act on a real-time, event-driven UNS, with a human-safe control boundary around physical actuation.
+
+> **Live kiosk demo (sim-only, no broker):** https://solacese.github.io/Solace-CandyFactory-UNS/ — the kiosk running against an in-browser loopback so the full ISA-95 event cascade plays with zero backend.
 
 ## Demo Flow
 

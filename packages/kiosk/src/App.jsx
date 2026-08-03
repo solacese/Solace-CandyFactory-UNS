@@ -113,7 +113,7 @@ export default function App() {
       <header className="flex items-center justify-between px-6 py-3 border-b border-[#00c895]/28 bg-[#ecfdf5]">
         <div className="flex items-center gap-5">
           <h1 className="t-title font-semibold text-[#052e22] tracking-widest font-mono">
-            <span className="text-[#00c895]">SOLACE</span> HARIBOT
+            <span className="text-[#00c895]">SOLACE</span> CANDYFACTORY
           </h1>
           <span className="t-label text-[#052e22]/55 font-mono tracking-wider">UNS DEMO / ISA-95</span>
         </div>

@@ -2,8 +2,36 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
+// GitHub Pages serves the kiosk under /<repo>/, so the built asset URLs must be
+// prefixed. Overridable via VITE_BASE for other hosts; defaults to root for the
+// local dev server and the on-site booth build.
+const base = process.env.VITE_BASE || '/';
+
+// Sim-only build (GitHub Pages): redirect every import of broker/connection.js
+// to the in-browser loopback broker so the demo runs with no network. The
+// SimulationEngine and every tab are untouched — they still import the same
+// module specifier; only what it resolves to changes. Selected via VITE_LOOPBACK.
+const loopback = process.env.VITE_LOOPBACK === '1';
+
+/** Rewrites any resolved path ending in broker/connection.js -> connection.loopback.js */
+function loopbackBrokerPlugin() {
+  return {
+    name: 'kiosk-loopback-broker',
+    enforce: 'pre',
+    async resolveId(source, importer, options) {
+      if (!source.includes('connection')) return null;
+      const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
+      if (resolved && /broker[\\/]connection\.js$/.test(resolved.id)) {
+        return resolved.id.replace(/connection\.js$/, 'connection.loopback.js');
+      }
+      return null;
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  base,
+  plugins: [react(), tailwindcss(), ...(loopback ? [loopbackBrokerPlugin()] : [])],
   server: { port: 3005 },
   resolve: {
     alias: {
