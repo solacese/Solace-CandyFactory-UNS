@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>What is a Unified Namespace (UNS)? — Solace CandyFactory</title>
+  <style>
+    :root {
+      --bg: #ecfdf5;
+      --ink: #052e22;
+      --accent: #00c895;
+      --card: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+    }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 48px 24px 80px; }
+    header.top {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 8px;
+    }
+    .brand {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-weight: 700; letter-spacing: 0.14em; font-size: 15px;
+    }
+    .brand .accent { color: var(--accent); }
+    a.back {
+      margin-left: auto; font-size: 13px; text-decoration: none;
+      color: var(--ink); opacity: 0.7; border: 1px solid rgba(0,200,149,0.34);
+      padding: 6px 12px; border-radius: 4px; font-family: ui-monospace, monospace;
+    }
+    a.back:hover { opacity: 1; border-color: rgba(0,200,149,0.6); }
+    h1 { font-size: 34px; line-height: 1.2; margin: 18px 0 6px; }
+    .lede { font-size: 18px; opacity: 0.8; margin: 0 0 32px; }
+    h2 { font-size: 22px; margin: 40px 0 10px; }
+    h3 { font-size: 16px; margin: 22px 0 4px; }
+    p { margin: 8px 0; }
+    code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .pill {
+      display: inline-block; font-family: ui-monospace, monospace; font-size: 12px;
+      color: var(--accent); border: 1px solid rgba(0,200,149,0.4);
+      background: rgba(0,200,149,0.08); padding: 2px 8px; border-radius: 999px;
+    }
+    .card {
+      background: var(--card); border: 1px solid rgba(0,200,149,0.28);
+      border-radius: 8px; padding: 18px 20px; margin: 14px 0;
+    }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+    .tree {
+      font-family: ui-monospace, monospace; font-size: 13px; line-height: 1.7;
+      background: var(--card); border: 1px solid rgba(0,200,149,0.28);
+      border-radius: 8px; padding: 16px 20px; white-space: pre; overflow-x: auto;
+    }
+    .tree .accent { color: var(--accent); }
+    ul { margin: 8px 0; padding-left: 22px; }
+    li { margin: 6px 0; }
+    .links a {
+      display: block; text-decoration: none; color: var(--ink);
+      background: var(--card); border: 1px solid rgba(0,200,149,0.28);
+      border-radius: 8px; padding: 14px 16px; margin: 10px 0; transition: border-color .15s;
+    }
+    .links a:hover { border-color: rgba(0,200,149,0.7); }
+    .links .t { font-weight: 600; }
+    .links .u { font-size: 12px; opacity: 0.55; font-family: ui-monospace, monospace; word-break: break-all; }
+    footer { margin-top: 48px; font-size: 13px; opacity: 0.55; }
+    .accent-txt { color: var(--accent); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <span class="brand"><span class="accent">SOLACE</span> CANDYFACTORY</span>
+      <a class="back" href="./">← Back to the demo</a>
+    </header>
+
+    <span class="pill">UNS · ISA-95 · Event-Driven</span>
+    <h1>What is a Unified Namespace?</h1>
+    <p class="lede">
+      A <strong>Unified Namespace (UNS)</strong> is a single, real-time, hierarchically
+      structured source of truth for everything happening across a business — from the
+      shop floor to the top floor. Every system <em>publishes</em> its state to a common
+      topic tree and <em>subscribes</em> to whatever it needs, instead of wiring
+      brittle point-to-point integrations between each pair of systems.
+    </p>
+
+    <h2>What you're watching in this demo</h2>
+    <p>
+      This kiosk simulates a HARIBO-style candy factory as an event-driven UNS. A customer
+      order flows all the way down to the packing robot and back up as completion status —
+      and <span class="accent-txt">every step is a message on the namespace</span>, visible
+      live in the event feed on the right of the demo.
+    </p>
+    <div class="tree">candyfactory/
+├─ <span class="accent">enterprise/</span>
+│   ├─ orders/        <span style="opacity:.5">L5 — customer orders</span>
+│   └─ erp/           <span style="opacity:.5">L4 — work orders, inventory</span>
+└─ <span class="accent">paris/</span>
+    ├─ mes/           <span style="opacity:.5">L3 — production, OEE</span>
+    └─ packing/line1/
+        ├─ scada/     <span style="opacity:.5">L2 — sensors, conveyor</span>
+        ├─ arm/       <span style="opacity:.5">L1 — pick-and-place robot</span>
+        └─ hitl/      <span style="opacity:.5">human-in-the-loop approvals</span></div>
+    <p style="font-size:14px; opacity:.75">
+      The hierarchy follows the <strong>ISA-95</strong> model (levels 0–5), a widely used
+      standard for structuring manufacturing operations from field devices up to business
+      planning. A well-formed topic tree is what makes a namespace "unified."
+    </p>
+
+    <h2>Why teams adopt a UNS</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Decoupling</h3>
+        <p>Producers and consumers never know about each other — they only share the
+        namespace. Add a dashboard, an AI model, or a new line without touching existing systems.</p>
+      </div>
+      <div class="card">
+        <h3>Real-time by default</h3>
+        <p>State is pushed the instant it changes. No polling, no nightly batch — the
+        whole enterprise sees the same live picture.</p>
+      </div>
+      <div class="card">
+        <h3>Single source of truth</h3>
+        <p>One consistently-structured tree means IT and OT finally speak the same
+        language, with context (site, line, asset) baked into every topic.</p>
+      </div>
+      <div class="card">
+        <h3>Scales across sites</h3>
+        <p>With an <strong>event mesh</strong>, the same namespace spans factories, clouds,
+        and regions — events flow to wherever they're needed, securely.</p>
+      </div>
+    </div>
+
+    <h2>How Solace fits</h2>
+    <p>
+      Solace PubSub+ provides the event broker and <strong>event mesh</strong> that carries
+      the namespace: rich hierarchical topics with wildcard subscriptions, guaranteed
+      delivery, replay, and the ability to bridge OT protocols (MQTT) with IT systems
+      (Kafka, REST, AMQP) — the backbone a production UNS needs.
+    </p>
+
+    <h2>Learn more</h2>
+    <div class="links">
+      <a href="https://solace.com/solutions/industries/manufacturing/" target="_blank" rel="noopener noreferrer">
+        <span class="t">Solace for Manufacturing — Unified Namespace &amp; Industry 4.0</span>
+        <span class="u">solace.com/solutions/industries/manufacturing/</span>
+      </a>
+      <a href="https://solace.com/what-is-an-event-mesh/" target="_blank" rel="noopener noreferrer">
+        <span class="t">What is an Event Mesh?</span>
+        <span class="u">solace.com/what-is-an-event-mesh/</span>
+      </a>
+      <a href="https://solace.com/blog/industrial-iot-infrastructure-better-than-mqttkafka/" target="_blank" rel="noopener noreferrer">
+        <span class="t">Blog: Beyond MQTT + Kafka — A Better Approach to Industrial IoT</span>
+        <span class="u">solace.com/blog/industrial-iot-infrastructure-better-than-mqttkafka/</span>
+      </a>
+      <a href="https://solace.com/blog/" target="_blank" rel="noopener noreferrer">
+        <span class="t">More on the Solace blog</span>
+        <span class="u">solace.com/blog/</span>
+      </a>
+    </div>
+
+    <footer>
+      Solace CandyFactory UNS — an ISA-95 kiosk demo. The cascade you see runs entirely in
+      your browser; on the live version it flows over a Solace PubSub+ event broker.
+    </footer>
+  </div>
+</body>
+</html>

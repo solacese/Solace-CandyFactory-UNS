@@ -425,17 +425,13 @@ const LEVEL_LABEL = { high: 'HIGH', medium: 'MEDIUM', low: 'LOW', unavailable: '
 
 function InventoryRow({ sweet, info }) {
   const level = info?.level || 'unavailable';
-  const onHand = info?.onHand;
   const color = LEVEL_COLORS[level] || LEVEL_COLORS.unavailable;
   return (
     <div className="flex items-center gap-2">
       <span className="text-base leading-none">{sweet.emoji}</span>
       <span className="t-label text-[#052e22] font-medium truncate">{sweet.name}</span>
-      <span className="t-data font-mono text-[#052e22]/72 ml-auto tabular-nums">
-        {onHand == null ? '—' : onHand}
-      </span>
       <span
-        className="t-label font-mono px-1.5 py-0.5 rounded shrink-0 w-[68px] text-center"
+        className="t-label font-mono px-1.5 py-0.5 rounded shrink-0 w-[76px] text-center ml-auto"
         style={{ color, backgroundColor: `${color}1f`, border: `1px solid ${color}55` }}
       >
         {LEVEL_LABEL[level]}

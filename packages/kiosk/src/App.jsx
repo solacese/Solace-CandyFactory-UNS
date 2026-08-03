@@ -93,6 +93,41 @@ export default function App() {
     return active;
   }, [visibleEvents]);
 
+  // Per-category live throughput: events in the last 60s + a short-window
+  // rate (events/sec over the last 10s). Recomputed on a 1s tick so the
+  // numbers keep advancing even when no new event arrives.
+  const [statTick, setStatTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setStatTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const categoryStats = useMemo(() => {
+    const now = Date.now();
+    const stats = {}; // cat -> { lastMin, rate }
+    const perCat = {};
+    for (const evt of allEvents) {
+      const cat = getCategoryFromTopic(evt.topic);
+      if (!cat) continue;
+      const age = now - (evt._receivedAt || 0);
+      if (age > 60000) continue;
+      (perCat[cat] ||= []).push(age);
+    }
+    let totalMin = 0;
+    let totalRate = 0;
+    for (const [cat, ages] of Object.entries(perCat)) {
+      const lastMin = ages.length;
+      const inWindow = ages.filter((a) => a <= 10000).length;
+      const rate = inWindow / 10;
+      stats[cat] = { lastMin, rate };
+      totalMin += lastMin;
+      totalRate += rate;
+    }
+    stats.__total = { lastMin: totalMin, rate: totalRate };
+    return stats;
+    // statTick drives the recompute cadence
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allEvents, statTick]);
+
   function toggleFilter(cat) {
     setActiveFilters((prev) => {
       const next = new Set(prev);
@@ -111,30 +146,27 @@ export default function App() {
     <div className="flex flex-col h-screen bg-[#ecfdf5]">
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-3 border-b border-[#00c895]/28 bg-[#ecfdf5]">
-        <div className="flex items-center gap-5">
-          <h1 className="t-title font-semibold text-[#052e22] tracking-widest font-mono">
-            <span className="text-[#00c895]">SOLACE</span> CANDYFACTORY
-          </h1>
-          <span className="t-label text-[#052e22]/55 font-mono tracking-wider">UNS DEMO / ISA-95</span>
-        </div>
+        <h1 className="t-title font-semibold text-[#052e22] tracking-widest font-mono">
+          <span className="text-[#00c895]">SOLACE</span> CANDYFACTORY
+        </h1>
 
         {/* Presenter control bar */}
         <div className="flex items-center gap-2">
-          <ControlButton onClick={handleTriggerOrder} label="▶ TRIGGER ORDER" />
+          <ControlButton onClick={handleTriggerOrder} label="▶ Trigger random order" />
           <ControlButton
             onClick={handleToggleAutoDemo}
-            label={autoDemo ? '⏸ AUTO-DEMO ON' : '▷ AUTO-DEMO OFF'}
+            label={autoDemo ? '⏸ Auto-demo on' : '▷ Auto-demo off'}
             active={autoDemo}
           />
-          <ControlButton onClick={handleResetFeed} label="⟳ RESET FEED" />
-        </div>
-
-        <div className="flex items-center gap-4">
-          <RoleBadge isOrchestrator={isOrchestrator} />
-          <span className="t-label font-mono text-[#052e22]/55">
-            {allEvents.length > 0 && `${allEvents.length} events`}
-          </span>
-          <ConnectionBadge status={connectionStatus} />
+          <a
+            href={`${import.meta.env.BASE_URL}uns.html`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 t-label font-mono font-bold tracking-wider border transition-colors
+              border-[#00c895]/34 text-[#052e22]/82 bg-transparent hover:border-[#00c895]/48 hover:text-[#052e22]"
+          >
+            ⓘ What is UNS?
+          </a>
         </div>
       </header>
 
@@ -179,11 +211,13 @@ export default function App() {
           <div className="px-4 py-2.5 border-b border-[#00c895]/28 flex items-center gap-2">
             <div className="w-2 h-2 bg-[#00c895] animate-live" />
             <span className="t-data font-bold text-[#052e22]/88 tracking-widest font-mono">UNS EVENT FEED</span>
-            <span className="t-data text-[#052e22]/50 font-mono ml-auto">{filteredEvents.length}</span>
+            <span className="t-label text-[#052e22]/55 font-mono ml-auto tabular-nums">
+              {(categoryStats.__total?.rate ?? 0).toFixed(1)}/s · {categoryStats.__total?.lastMin ?? 0}/min
+            </span>
           </div>
 
           {/* Topic Tree */}
-          <TopicTree recentActivity={recentActivity} />
+          <TopicTree recentActivity={recentActivity} stats={categoryStats} />
 
           {/* Filter Chips */}
           <div className="px-4 py-2.5 border-b border-[#00c895]/28 flex flex-wrap gap-1.5">
@@ -226,7 +260,7 @@ export default function App() {
 }
 
 /* ─── Topic Tree ──────────────────────────────────────────────── */
-function TopicTree({ recentActivity }) {
+function TopicTree({ recentActivity, stats = {} }) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -237,6 +271,7 @@ function TopicTree({ recentActivity }) {
       >
         <span className="t-label text-[#052e22]/55 font-mono">{collapsed ? '▶' : '▼'}</span>
         <span className="t-label font-mono text-[#052e22]/72 tracking-wider">TOPIC HIERARCHY</span>
+        <span className="t-label font-mono text-[#052e22]/35 tracking-wider ml-auto pr-1">evt/s · last 60s</span>
       </button>
       {!collapsed && (
         <div className="px-4 pb-3 font-mono t-label leading-relaxed">
@@ -245,18 +280,18 @@ function TopicTree({ recentActivity }) {
           {/* Enterprise — company-wide business systems (L5, L4) */}
           <div className="text-[#052e22]/45 pl-2">├─ enterprise/</div>
           {['orders', 'erp'].map((cat) => (
-            <TreeLeaf key={cat} cat={cat} indent="pl-5" active={recentActivity.has(cat)} />
+            <TreeLeaf key={cat} cat={cat} indent="pl-5" active={recentActivity.has(cat)} stat={stats[cat]} />
           ))}
 
           {/* Site — Paris manufacturing site */}
           <div className="text-[#052e22]/45 pl-2">└─ paris/</div>
           {/* MES lives at the site level (L3) */}
-          <TreeLeaf cat="mes" indent="pl-5" active={recentActivity.has('mes')} />
+          <TreeLeaf cat="mes" indent="pl-5" active={recentActivity.has('mes')} stat={stats.mes} />
 
           {/* Area / production line — shop-floor equipment (L2, L0-1) */}
           <div className="text-[#052e22]/45 pl-5">└─ packing/line1/</div>
           {['scada', 'arm', 'hitl'].map((cat) => (
-            <TreeLeaf key={cat} cat={cat} indent="pl-8" active={recentActivity.has(cat)} />
+            <TreeLeaf key={cat} cat={cat} indent="pl-8" active={recentActivity.has(cat)} stat={stats[cat]} />
           ))}
         </div>
       )}
@@ -265,12 +300,18 @@ function TopicTree({ recentActivity }) {
 }
 
 /* ─── Topic tree leaf (one UNS category under its location) ────── */
-function TreeLeaf({ cat, indent, active }) {
+function TreeLeaf({ cat, indent, active, stat }) {
+  const rate = stat?.rate ?? 0;
+  const lastMin = stat?.lastMin ?? 0;
   return (
     <div className={`${indent} flex items-center gap-1`}>
       <span className="text-[#052e22]/45">├─</span>
       <span className={active ? 'text-[#00c895]' : 'text-[#052e22]/55'}>{cat}/</span>
       {active && <span className="w-1 h-1 bg-[#00c895] animate-live" />}
+      <span className="ml-auto flex items-center gap-2 tabular-nums">
+        <span className={rate > 0 ? 'text-[#00c895]' : 'text-[#052e22]/30'}>{rate.toFixed(1)}/s</span>
+        <span className="text-[#052e22]/40 w-[52px] text-right">{lastMin}/min</span>
+      </span>
     </div>
   );
 }

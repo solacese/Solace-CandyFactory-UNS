@@ -48,7 +48,7 @@ function AlarmBanner({ alarms, onAcknowledge }) {
   );
 }
 
-// ─── TIME-SERIES PLOT (with target line + normal band) ───────────────────
+// ─── TIME-SERIES PLOT (with target line + normal band as vertical bars) ──
 function TimeSeriesPlot({ values, target, lo, hi, color, width = 150, height = 44 }) {
   if (!values || values.length < 2) return <svg width={width} height={height} />;
 
@@ -60,24 +60,38 @@ function TimeSeriesPlot({ values, target, lo, hi, color, width = 150, height = 4
   const max = dataMax + pad;
   const range = max - min || 1;
 
+  // Reserve a right-hand gutter for the vertical band-limit axis.
+  const AXIS = 26;
+  const plotW = width - AXIS;
+
   const y = (v) => height - ((v - min) / range) * height;
-  const x = (i) => (i / (values.length - 1)) * width;
+  const x = (i) => (i / (values.length - 1)) * plotW;
 
   const line = values.map((v, i) => `${x(i)},${y(v)}`).join(' ');
   const bandTop = y(hi);
   const bandBottom = y(lo);
   const targetY = y(target);
+  const axisX = plotW + 8; // where the vertical band bar sits
 
   return (
     <svg width={width} height={height} className="overflow-visible">
-      {/* normal band */}
-      <rect x={0} y={bandTop} width={width} height={Math.max(0, bandBottom - bandTop)} fill="#00c895" opacity="0.08" />
+      {/* normal band shading across the plot */}
+      <rect x={0} y={bandTop} width={plotW} height={Math.max(0, bandBottom - bandTop)} fill="#00c895" opacity="0.08" />
       {/* target setpoint (dashed) */}
-      <line x1={0} y1={targetY} x2={width} y2={targetY} stroke="#052e22" strokeOpacity="0.28" strokeDasharray="3 3" strokeWidth="1" />
+      <line x1={0} y1={targetY} x2={plotW} y2={targetY} stroke="#052e22" strokeOpacity="0.28" strokeDasharray="3 3" strokeWidth="1" />
       {/* series */}
       <polyline points={line} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
       {/* latest point */}
       <circle cx={x(values.length - 1)} cy={y(values[values.length - 1])} r="2" fill={color} />
+
+      {/* ── vertical band-limit axis: a bar from lo to hi with end caps ── */}
+      <line x1={axisX} y1={bandTop} x2={axisX} y2={bandBottom} stroke="#00c895" strokeOpacity="0.7" strokeWidth="2" />
+      {/* hi cap + label */}
+      <line x1={axisX - 3} y1={bandTop} x2={axisX + 3} y2={bandTop} stroke="#00c895" strokeOpacity="0.7" strokeWidth="1.5" />
+      <text x={axisX + 5} y={bandTop + 3} fill="#052e22" fillOpacity="0.55" fontSize="7" fontFamily="monospace">{hi}</text>
+      {/* lo cap + label */}
+      <line x1={axisX - 3} y1={bandBottom} x2={axisX + 3} y2={bandBottom} stroke="#00c895" strokeOpacity="0.7" strokeWidth="1.5" />
+      <text x={axisX + 5} y={bandBottom + 3} fill="#052e22" fillOpacity="0.55" fontSize="7" fontFamily="monospace">{lo}</text>
     </svg>
   );
 }
@@ -108,11 +122,10 @@ function SensorCard({ sensor }) {
           sp {tgt.target}{sensor.unit}
         </span>
       </div>
-      <TimeSeriesPlot values={sensor.history} target={tgt.target} lo={tgt.lo} hi={tgt.hi} color={color} width={150} height={40} />
-      <div className="flex justify-between t-label font-mono text-[#052e22]/35">
-        <span>{tgt.lo}</span>
-        <span className="text-[#052e22]/45">normal band</span>
-        <span>{tgt.hi}</span>
+      <TimeSeriesPlot values={sensor.history} target={tgt.target} lo={tgt.lo} hi={tgt.hi} color={color} width={176} height={44} />
+      <div className="flex items-center gap-1.5 t-label font-mono text-[#052e22]/35">
+        <span className="inline-block w-0.5 h-3 bg-[#00c895]/70" />
+        <span className="text-[#052e22]/45">normal band {tgt.lo}–{tgt.hi}{sensor.unit}</span>
       </div>
     </div>
   );
