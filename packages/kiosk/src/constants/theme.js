@@ -8,9 +8,9 @@ export const BRAND = {
   bg: '#e6faf3',
   surface: '#ffffff',
   border: 'rgba(6,120,90,0.32)',
-  text: '#052e22',
-  textDim: 'rgba(5,46,34,0.78)',
-  textMuted: 'rgba(5,46,34,0.55)',
+  text: '#04121f',
+  textDim: 'rgba(4,18,31,0.78)',
+  textMuted: 'rgba(4,18,31,0.55)',
   accent: '#00c895',
   accentSoft: '#5eead4',
 };
@@ -51,7 +51,7 @@ export const STATUS_COLORS = {
   good: '#00c895',   // Solace green — on or better than target
   warn: '#f59e0b',   // amber — drifting toward the limit
   bad: '#ef4444',    // red — out of target
-  idle: '#052e22',   // neutral ink
+  idle: '#04121f',   // neutral ink
 };
 
 /**

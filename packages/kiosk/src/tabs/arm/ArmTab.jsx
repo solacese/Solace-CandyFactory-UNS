@@ -117,9 +117,9 @@ export default function ArmTab() {
         {/* Left: Robot Arm feed (live video coming — visualization removed for now) */}
         <div className="flex-1 rounded-card border border-[#00c895]/34 bg-white overflow-hidden flex flex-col shadow-sm">
           <div className="flex items-center justify-between px-3 pt-2">
-            <span className="t-label uppercase text-[#052e22]/70 tracking-wider">Robot Arm</span>
+            <span className="t-label uppercase text-[#04121f]/80 tracking-wider">Robot Arm</span>
             <span className={`t-label font-mono uppercase px-2 py-0.5 pill border ${
-              isActive ? 'border-[#00c895] text-[#00c895] bg-[#00c895]/8' : 'border-[#052e22]/45 text-[#052e22]/65'
+              isActive ? 'border-[#00c895] text-[#00c895] bg-[#00c895]/8' : 'border-[#04121f]/60 text-[#04121f]/76'
             }`}>
               {armStatus.status || 'idle'}
             </span>
@@ -131,7 +131,7 @@ export default function ArmTab() {
 
         {/* Right: Joint Telemetry */}
         <div className="w-60 rounded-card border border-[#00c895]/34 bg-white p-3 flex flex-col shadow-sm">
-          <span className="t-label uppercase text-[#052e22]/70 tracking-wider mb-2">Joint Telemetry</span>
+          <span className="t-label uppercase text-[#04121f]/80 tracking-wider mb-2">Joint Telemetry</span>
           <div className="flex flex-col gap-2 flex-1">
             {JOINT_NAMES.map((name, i) => (
               <JointBar
@@ -155,18 +155,18 @@ export default function ArmTab() {
       <div className="h-32 rounded-card border border-[#00c895]/34 bg-white flex flex-col overflow-hidden shadow-sm">
         <div className="px-3 py-1.5 border-b border-[#00c895]/28 flex items-center gap-2">
           <div className="w-1.5 h-1.5 pill bg-[#00c895] animate-live" />
-          <span className="t-label uppercase text-[#052e22]/70 tracking-wider">Command Log</span>
+          <span className="t-label uppercase text-[#04121f]/80 tracking-wider">Command Log</span>
         </div>
         <div ref={logRef} className="flex-1 overflow-y-auto px-3 py-1">
           {commandLog.map((entry) => (
             <div key={entry.id} className="py-0.5 flex gap-2 items-start font-mono t-label">
-              <span className="text-[#052e22]/60 shrink-0">{entry.time}</span>
+              <span className="text-[#04121f]/72 shrink-0">{entry.time}</span>
               <span className="text-[#00c895]/70 shrink-0">{entry.topic}</span>
-              <span className="text-[#052e22]/90 break-all">{entry.message}</span>
+              <span className="text-[#04121f]/90 break-all">{entry.message}</span>
             </div>
           ))}
           {commandLog.length === 0 && (
-            <span className="t-label font-mono text-[#052e22]/50">Awaiting arm events…</span>
+            <span className="t-label font-mono text-[#04121f]/64">Awaiting arm events…</span>
           )}
         </div>
       </div>
@@ -215,13 +215,13 @@ function UnitBanner({ unit, status }) {
     <div className="px-3 py-2 border-t border-[#00c895]/28 flex items-center gap-3">
       <span className="text-lg">{sweet?.emoji || '🍬'}</span>
       <div className="flex flex-col leading-tight">
-        <span className="t-data font-mono text-[#052e22]">{unit.itemId}</span>
-        <span className="t-label text-[#052e22]/70">
+        <span className="t-data font-mono text-[#04121f]">{unit.itemId}</span>
+        <span className="t-label text-[#04121f]/80">
           Unit {unit.unitIndex}/{unit.totalUnits} · {sweet?.name || unit.sweetType}
         </span>
       </div>
       <span className={`ml-auto t-label font-mono uppercase px-2 py-0.5 pill ${
-        status === 'executing' ? 'text-[#00c895] bg-[#00c895]/8' : 'text-[#052e22]/65 bg-[#052e22]/5'
+        status === 'executing' ? 'text-[#00c895] bg-[#00c895]/8' : 'text-[#04121f]/76 bg-[#04121f]/5'
       }`}>
         {status === 'executing' ? 'picking' : 'placed'}
       </span>
@@ -239,8 +239,8 @@ function JointBar({ name, angle, isGripper, gripperState }) {
   return (
     <div className="flex flex-col gap-0.5">
       <div className="flex justify-between items-center">
-        <span className="t-label font-mono text-[#052e22]/70">{name}</span>
-        <span className="t-label font-mono text-[#052e22]">{displayValue}</span>
+        <span className="t-label font-mono text-[#04121f]/80">{name}</span>
+        <span className="t-label font-mono text-[#04121f]">{displayValue}</span>
       </div>
       <div className="h-1.5 pill bg-[#00c895]/10 overflow-hidden">
         <div
@@ -260,8 +260,8 @@ function HitlPanel({ request, onApprove, onReject }) {
     <div className="rounded-card border border-[#00c895]/48 bg-[#00c895]/5 p-3 flex items-center gap-3 shadow-sm">
       <div className="flex-1">
         <div className="t-label uppercase text-[#00c895] tracking-wider mb-0.5">Approval Required</div>
-        <p className="t-data font-mono text-[#052e22]">{action}</p>
-        {reason && <p className="t-label font-mono text-[#052e22]/72 mt-0.5">{reason}</p>}
+        <p className="t-data font-mono text-[#04121f]">{action}</p>
+        {reason && <p className="t-label font-mono text-[#04121f]/82 mt-0.5">{reason}</p>}
       </div>
       <div className="flex gap-2 shrink-0">
         <button
@@ -273,8 +273,8 @@ function HitlPanel({ request, onApprove, onReject }) {
         </button>
         <button
           onClick={onReject}
-          className="px-4 py-1.5 pill border border-[#052e22]/50 text-[#052e22]/88 font-semibold t-label uppercase tracking-wider
-            hover:bg-[#052e22]/5 transition-colors"
+          className="px-4 py-1.5 pill border border-[#04121f]/64 text-[#04121f]/88 font-semibold t-label uppercase tracking-wider
+            hover:bg-[#04121f]/5 transition-colors"
         >
           Reject
         </button>

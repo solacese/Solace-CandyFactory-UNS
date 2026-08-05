@@ -307,8 +307,8 @@ export default function MarketplaceTab() {
         {/* Header */}
         <div className="px-4 py-2 border-b border-[#00c895]/28 flex items-center gap-3">
           <div className="w-1.5 h-1.5 bg-[#00c895] animate-live" />
-          <span className="t-label uppercase tracking-widest text-[#052e22]/65 font-mono">Solace Sweets Assistant</span>
-          <span className="t-label text-[#052e22]/45 font-mono ml-auto">1 COMMERCE</span>
+          <span className="t-label uppercase tracking-widest text-[#04121f]/76 font-mono">Solace Sweets Assistant</span>
+          <span className="t-label text-[#04121f]/60 font-mono ml-auto">1 COMMERCE</span>
         </div>
 
         {/* Chat Messages */}
@@ -324,7 +324,7 @@ export default function MarketplaceTab() {
                 <button
                   key={choice.id}
                   onClick={() => step === STEPS.DONE ? handleDoneChoice(choice) : handleChoice(choice)}
-                  className="px-3 py-1.5 border border-[#00c895]/40 text-[#052e22] t-label font-mono hover:bg-[#00c895]/5 hover:border-[#00c895] transition-colors"
+                  className="px-3 py-1.5 border border-[#00c895]/40 text-[#04121f] t-label font-mono hover:bg-[#00c895]/5 hover:border-[#00c895] transition-colors"
                 >
                   {choice.label}
                 </button>
@@ -353,7 +353,7 @@ export default function MarketplaceTab() {
               'Type a message…'
             }
             autoFocus
-            className="flex-1 bg-white border border-[#00c895]/28 text-[#052e22] font-mono px-3 py-2 t-data placeholder-[#052e22]/50 focus:outline-none focus:border-[#00c895]"
+            className="flex-1 bg-white border border-[#00c895]/28 text-[#04121f] font-mono px-3 py-2 t-data placeholder-[#04121f]/64 focus:outline-none focus:border-[#00c895]"
           />
           <button
             type="submit"
@@ -368,7 +368,7 @@ export default function MarketplaceTab() {
       <div className="w-[300px] shrink-0 flex flex-col border-l border-[#00c895]/28 min-h-0">
         {/* Live inventory */}
         <div className="px-3 py-2 border-b border-[#00c895]/28 flex items-center justify-between">
-          <span className="t-label uppercase tracking-widest text-[#052e22]/65 font-mono">Candy Inventory</span>
+          <span className="t-label uppercase tracking-widest text-[#04121f]/76 font-mono">Candy Inventory</span>
           <span className="w-1.5 h-1.5 bg-[#00c895] animate-live" />
         </div>
         <div className="px-3 py-2 border-b border-[#00c895]/28 flex flex-col gap-2">
@@ -379,11 +379,11 @@ export default function MarketplaceTab() {
 
         {/* Orders */}
         <div className="px-3 py-2 border-b border-[#00c895]/28 flex items-center justify-between">
-          <span className="t-label uppercase tracking-widest text-[#052e22]/65 font-mono">Orders</span>
-          <span className="t-label font-mono text-[#052e22]/45">{orders.length}</span>
+          <span className="t-label uppercase tracking-widest text-[#04121f]/76 font-mono">Orders</span>
+          <span className="t-label font-mono text-[#04121f]/60">{orders.length}</span>
         </div>
         {orders.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center text-[#052e22]/45 t-label font-mono">
+          <div className="flex-1 flex items-center justify-center text-[#04121f]/60 t-label font-mono">
             NO ORDERS YET
           </div>
         ) : (
@@ -408,12 +408,12 @@ function ChatBubble({ message }) {
       <div
         className={`max-w-[80%] px-3 py-2 t-data whitespace-pre-wrap ${
           isBot
-            ? 'bg-[#00c895]/5 border border-[#00c895]/28 text-[#052e22]/95'
-            : 'bg-[#00c895]/10 border border-[#00c895]/40 text-[#052e22]'
+            ? 'bg-[#00c895]/5 border border-[#00c895]/28 text-[#04121f]/95'
+            : 'bg-[#00c895]/10 border border-[#00c895]/40 text-[#04121f]'
         }`}
       >
         {isBot && (
-          <div className="t-label font-mono text-[#052e22]/55 mb-1 uppercase">Solace AI</div>
+          <div className="t-label font-mono text-[#04121f]/68 mb-1 uppercase">Solace AI</div>
         )}
         {message.text}
       </div>
@@ -429,7 +429,7 @@ function InventoryRow({ sweet, info }) {
   return (
     <div className="flex items-center gap-2">
       <span className="text-base leading-none">{sweet.emoji}</span>
-      <span className="t-label text-[#052e22] font-medium truncate">{sweet.name}</span>
+      <span className="t-label text-[#04121f] font-medium truncate">{sweet.name}</span>
       <span
         className="t-label font-mono px-1.5 py-0.5 rounded shrink-0 w-[76px] text-center ml-auto"
         style={{ color, backgroundColor: `${color}1f`, border: `1px solid ${color}55` }}
@@ -448,12 +448,12 @@ function OrderRow({ event }) {
   return (
     <div className="px-3 py-2">
       <div className="flex items-center gap-2">
-        <span className="t-label text-[#052e22] font-medium truncate">{payload.customerName || '—'}</span>
-        <span className="t-label font-mono border border-[#00c895]/40 text-[#052e22]/72 px-1 ml-auto shrink-0">
+        <span className="t-label text-[#04121f] font-medium truncate">{payload.customerName || '—'}</span>
+        <span className="t-label font-mono border border-[#00c895]/40 text-[#04121f]/82 px-1 ml-auto shrink-0">
           {(payload.status || 'PENDING').toUpperCase()}
         </span>
       </div>
-      <div className="t-label text-[#052e22]/65 font-mono mt-0.5">
+      <div className="t-label text-[#04121f]/76 font-mono mt-0.5">
         {items.map((item, i) => {
           const sweet = sweetMap[item.sweetType];
           return (
@@ -464,7 +464,7 @@ function OrderRow({ event }) {
           );
         })}
       </div>
-      <div className="t-label text-[#052e22]/45 font-mono mt-0.5">
+      <div className="t-label text-[#04121f]/60 font-mono mt-0.5">
         {event.correlationId?.slice(0, 8)} · {event.timestamp && new Date(event.timestamp).toLocaleTimeString()}
       </div>
     </div>

@@ -32,13 +32,13 @@ function AlarmBanner({ alarms, onAcknowledge }) {
       {alarms.map((alarm, i) => (
         <div key={i} className="flex items-center gap-3 t-label font-mono py-0.5">
           <span className="text-[#ef4444] font-bold">[ALARM]</span>
-          <span className="text-[#052e22]/90 flex-1 truncate">{alarm.message}</span>
-          <span className="text-[#052e22]/55">
+          <span className="text-[#04121f]/90 flex-1 truncate">{alarm.message}</span>
+          <span className="text-[#04121f]/68">
             {alarm.timestamp ? new Date(alarm.timestamp).toLocaleTimeString('en-GB', { hour12: false }) : ''}
           </span>
           <button
             onClick={() => onAcknowledge(alarm)}
-            className="px-2 py-0.5 t-label uppercase border border-[#00c895]/48 text-[#052e22] hover:bg-[#00c895]/10 transition-colors"
+            className="px-2 py-0.5 t-label uppercase border border-[#00c895]/48 text-[#04121f] hover:bg-[#00c895]/10 transition-colors"
           >
             ACK
           </button>
@@ -78,7 +78,7 @@ function TimeSeriesPlot({ values, target, lo, hi, color, width = 150, height = 4
       {/* normal band shading across the plot */}
       <rect x={0} y={bandTop} width={plotW} height={Math.max(0, bandBottom - bandTop)} fill="#00c895" opacity="0.08" />
       {/* target setpoint (dashed) */}
-      <line x1={0} y1={targetY} x2={plotW} y2={targetY} stroke="#052e22" strokeOpacity="0.28" strokeDasharray="3 3" strokeWidth="1" />
+      <line x1={0} y1={targetY} x2={plotW} y2={targetY} stroke="#04121f" strokeOpacity="0.28" strokeDasharray="3 3" strokeWidth="1" />
       {/* series */}
       <polyline points={line} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
       {/* latest point */}
@@ -88,10 +88,10 @@ function TimeSeriesPlot({ values, target, lo, hi, color, width = 150, height = 4
       <line x1={axisX} y1={bandTop} x2={axisX} y2={bandBottom} stroke="#00c895" strokeOpacity="0.7" strokeWidth="2" />
       {/* hi cap + label */}
       <line x1={axisX - 3} y1={bandTop} x2={axisX + 3} y2={bandTop} stroke="#00c895" strokeOpacity="0.7" strokeWidth="1.5" />
-      <text x={axisX + 5} y={bandTop + 3} fill="#052e22" fillOpacity="0.55" fontSize="7" fontFamily="monospace">{hi}</text>
+      <text x={axisX + 5} y={bandTop + 3} fill="#04121f" fillOpacity="0.55" fontSize="7" fontFamily="monospace">{hi}</text>
       {/* lo cap + label */}
       <line x1={axisX - 3} y1={bandBottom} x2={axisX + 3} y2={bandBottom} stroke="#00c895" strokeOpacity="0.7" strokeWidth="1.5" />
-      <text x={axisX + 5} y={bandBottom + 3} fill="#052e22" fillOpacity="0.55" fontSize="7" fontFamily="monospace">{lo}</text>
+      <text x={axisX + 5} y={bandBottom + 3} fill="#04121f" fillOpacity="0.55" fontSize="7" fontFamily="monospace">{lo}</text>
     </svg>
   );
 }
@@ -106,8 +106,8 @@ function SensorCard({ sensor }) {
     <div className="border border-[#00c895]/28 bg-white p-2.5 flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
         <div className="flex flex-col">
-          <span className="t-label font-mono text-[#052e22]/72">{sensor.sensorId}</span>
-          <span className="t-label text-[#052e22]/45">{sensor.location}</span>
+          <span className="t-label font-mono text-[#04121f]/82">{sensor.sensorId}</span>
+          <span className="t-label text-[#04121f]/60">{sensor.location}</span>
         </div>
         <span className="t-label font-mono uppercase px-1.5 py-0.5" style={{ color, border: `1px solid ${color}55` }}>
           {grade === 'good' ? 'normal' : grade === 'warn' ? 'watch' : 'alarm'}
@@ -117,15 +117,15 @@ function SensorCard({ sensor }) {
         <span className="text-2xl font-mono" style={{ color }}>
           {typeof sensor.value === 'number' ? sensor.value.toFixed(1) : sensor.value}
         </span>
-        <span className="t-label font-mono text-[#052e22]/55">{sensor.unit}</span>
-        <span className="t-label font-mono text-[#052e22]/40 ml-auto">
+        <span className="t-label font-mono text-[#04121f]/68">{sensor.unit}</span>
+        <span className="t-label font-mono text-[#04121f]/56 ml-auto">
           sp {tgt.target}{sensor.unit}
         </span>
       </div>
       <TimeSeriesPlot values={sensor.history} target={tgt.target} lo={tgt.lo} hi={tgt.hi} color={color} width={176} height={44} />
-      <div className="flex items-center gap-1.5 t-label font-mono text-[#052e22]/35">
+      <div className="flex items-center gap-1.5 t-label font-mono text-[#04121f]/52">
         <span className="inline-block w-0.5 h-3 bg-[#00c895]/70" />
-        <span className="text-[#052e22]/45">normal band {tgt.lo}–{tgt.hi}{sensor.unit}</span>
+        <span className="text-[#04121f]/60">normal band {tgt.lo}–{tgt.hi}{sensor.unit}</span>
       </div>
     </div>
   );
@@ -144,10 +144,10 @@ function ConveyorMetrics({ speed, itemsInTransit, itemsProcessed }) {
 function Metric({ label, value, unit }) {
   return (
     <div className="border border-[#00c895]/28 bg-white px-3 py-2">
-      <div className="t-label text-[#052e22]/55 uppercase tracking-wider">{label}</div>
+      <div className="t-label text-[#04121f]/68 uppercase tracking-wider">{label}</div>
       <div className="flex items-baseline gap-1 mt-0.5">
-        <span className="text-2xl font-mono text-[#052e22]">{value}</span>
-        <span className="t-label font-mono text-[#052e22]/55">{unit}</span>
+        <span className="text-2xl font-mono text-[#04121f]">{value}</span>
+        <span className="t-label font-mono text-[#04121f]/68">{unit}</span>
       </div>
     </div>
   );
@@ -221,7 +221,7 @@ export default function ScadaTab() {
 
       <div className="flex items-center gap-2 px-1">
         <div className="w-1.5 h-1.5 bg-[#00c895] animate-live" />
-        <span className="t-label font-mono text-[#052e22]/55">LIVE — {events.length} SCADA events captured</span>
+        <span className="t-label font-mono text-[#04121f]/68">LIVE — {events.length} SCADA events captured</span>
       </div>
     </div>
   );

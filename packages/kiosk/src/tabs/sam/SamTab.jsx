@@ -67,19 +67,19 @@ export default function SamTab() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 bg-[#7c3aed] animate-live" />
-          <h2 className="t-data font-medium text-[#052e22] uppercase tracking-wide">Solace Agent Mesh</h2>
+          <h2 className="t-data font-medium text-[#04121f] uppercase tracking-wide">Solace Agent Mesh</h2>
         </div>
-        <span className="t-label font-mono text-[#052e22]/55">
+        <span className="t-label font-mono text-[#04121f]/68">
           {SAM_AGENTS.length} AGENTS · {resolved} RESOLVED · {active.length} ACTIVE
         </span>
       </div>
 
       {/* Explainer */}
-      <div className="border border-[#7c3aed]/28 bg-[#7c3aed]/[0.04] px-3 py-2 t-label font-mono text-[#052e22]/75 leading-relaxed">
+      <div className="border border-[#7c3aed]/28 bg-[#7c3aed]/[0.04] px-3 py-2 t-label font-mono text-[#04121f]/75 leading-relaxed">
         SAM agents subscribe to the entire UNS. When a disruption appears
         <span className="text-[#ef4444] font-medium"> (red events)</span>, an agent detects it,
         reasons with an LLM, and publishes a corrective event — no human in the loop.
-        Press <span className="text-[#052e22] font-medium">Trigger chaos</span> to inject one.
+        Press <span className="text-[#04121f] font-medium">Trigger chaos</span> to inject one.
       </div>
 
       {/* Agent mesh */}
@@ -98,12 +98,12 @@ export default function SamTab() {
               <div className="flex items-center gap-2">
                 <span
                   className={`w-2 h-2 shrink-0 ${busy ? 'animate-live' : ''}`}
-                  style={{ background: busy ? a.color : 'rgba(5,46,34,0.2)' }}
+                  style={{ background: busy ? a.color : 'rgba(4,18,31,0.2)' }}
                 />
-                <span className="t-data font-medium text-[#052e22] truncate">{a.name}</span>
+                <span className="t-data font-medium text-[#04121f] truncate">{a.name}</span>
               </div>
-              <span className="t-label font-mono text-[#052e22]/60 leading-snug">{a.role}</span>
-              <span className="t-label font-mono uppercase tracking-wider mt-0.5" style={{ color: busy ? a.color : 'rgba(5,46,34,0.35)' }}>
+              <span className="t-label font-mono text-[#04121f]/72 leading-snug">{a.role}</span>
+              <span className="t-label font-mono uppercase tracking-wider mt-0.5" style={{ color: busy ? a.color : 'rgba(4,18,31,0.55)' }}>
                 {busy ? 'WORKING' : 'IDLE'}
               </span>
             </div>
@@ -113,12 +113,12 @@ export default function SamTab() {
 
       {/* Incident feed */}
       <div className="flex items-center gap-2">
-        <h3 className="t-label uppercase tracking-widest text-[#052e22]/65 font-mono">Incidents & Resolutions</h3>
+        <h3 className="t-label uppercase tracking-widest text-[#04121f]/76 font-mono">Incidents & Resolutions</h3>
         <div className="flex-1 h-px bg-[#00c895]/20" />
       </div>
 
       {incidents.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-[#052e22]/45 t-label font-mono text-center px-6">
+        <div className="flex-1 flex items-center justify-center text-[#04121f]/60 t-label font-mono text-center px-6">
           NO INCIDENTS — PRESS “TRIGGER CHAOS” TO INJECT A DISRUPTION FOR SAM TO SOLVE
         </div>
       ) : (
@@ -146,8 +146,8 @@ function IncidentCard({ inc }) {
         <span className="t-label font-mono font-medium px-1.5 py-0.5" style={{ color, background: `${color}1a`, border: `1px solid ${color}55` }}>
           {STAGE_LABEL[stage]}
         </span>
-        <span className="t-data text-[#052e22] font-medium truncate">{inc.label || inc.incidentId}</span>
-        <span className="t-label font-mono text-[#052e22]/45 ml-auto shrink-0">
+        <span className="t-data text-[#04121f] font-medium truncate">{inc.label || inc.incidentId}</span>
+        <span className="t-label font-mono text-[#04121f]/60 ml-auto shrink-0">
           {inc.agentName || 'SAM'}
         </span>
       </div>
@@ -175,7 +175,7 @@ function TimelineLine({ dot, text, bold }) {
   return (
     <div className="flex items-start gap-2">
       <span className="w-1.5 h-1.5 mt-1 shrink-0" style={{ background: dot }} />
-      <span className={`text-[#052e22]/${bold ? '90' : '72'} leading-snug ${bold ? 'font-medium' : ''}`}>{text}</span>
+      <span className={`text-[#04121f]/${bold ? '90' : '72'} leading-snug ${bold ? 'font-medium' : ''}`}>{text}</span>
     </div>
   );
 }

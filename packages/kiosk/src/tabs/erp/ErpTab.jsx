@@ -84,8 +84,8 @@ export default function ErpTab() {
     <div className="h-full flex flex-col gap-4 p-4 overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="t-data font-medium text-[#052e22] uppercase tracking-wide">ERP Work Orders</h2>
-        <span className="t-label font-mono text-[#052e22]/55">
+        <h2 className="t-data font-medium text-[#04121f] uppercase tracking-wide">ERP Work Orders</h2>
+        <span className="t-label font-mono text-[#04121f]/68">
           2 PLANNING | {erpEvents.length} EVT
         </span>
       </div>
@@ -100,14 +100,14 @@ export default function ErpTab() {
 
       {/* Work Order Table */}
       {workOrders.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-[#052e22]/45 t-label font-mono">
+        <div className="flex-1 flex items-center justify-center text-[#04121f]/60 t-label font-mono">
           NO WORK ORDERS — SUBMIT AN ORDER FROM MARKETPLACE
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto border border-[#00c895]/28">
           <table className="w-full t-label">
             <thead>
-              <tr className="t-label uppercase text-[#052e22]/75 border-b border-[#00c895]/28">
+              <tr className="t-label uppercase text-[#04121f]/75 border-b border-[#00c895]/28">
                 <th className="text-left px-3 py-2 font-medium">WO#</th>
                 <th className="text-left px-3 py-2 font-medium">Customer</th>
                 <th className="text-left px-3 py-2 font-medium">PRI</th>
@@ -119,14 +119,14 @@ export default function ErpTab() {
             <tbody>
               {workOrders.map((wo) => (
                 <tr key={wo.workOrderId} className="border-b border-[#00c895]/22 hover:bg-[#00c895]/[0.02]">
-                  <td className="px-3 py-2 font-mono text-[#052e22]">{wo.workOrderId}</td>
-                  <td className="px-3 py-2 text-[#052e22]">{wo.customerName}</td>
+                  <td className="px-3 py-2 font-mono text-[#04121f]">{wo.workOrderId}</td>
+                  <td className="px-3 py-2 text-[#04121f]">{wo.customerName}</td>
                   <td className="px-3 py-2">
-                    <span className={`font-mono uppercase ${wo.priority === 'high' ? 'text-[#052e22] font-semibold' : 'text-[#052e22]/90'}`}>
+                    <span className={`font-mono uppercase ${wo.priority === 'high' ? 'text-[#04121f] font-semibold' : 'text-[#04121f]/90'}`}>
                       {wo.priority === 'high' ? 'HIGH' : wo.priority === 'medium' ? 'MED' : 'LOW'}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-[#052e22] font-mono">
+                  <td className="px-3 py-2 text-[#04121f] font-mono">
                     {wo.items.map((item, i) => {
                       const sweet = sweetMap[item.sweetType];
                       return (
@@ -136,12 +136,12 @@ export default function ErpTab() {
                         </span>
                       );
                     })}
-                    {wo.items.length === 0 && <span className="text-[#052e22]/70">—</span>}
+                    {wo.items.length === 0 && <span className="text-[#04121f]/80">—</span>}
                   </td>
-                  <td className="px-3 py-2 font-mono text-[#052e22]">
+                  <td className="px-3 py-2 font-mono text-[#04121f]">
                     [{wo.status?.toUpperCase() || 'CREATED'}]
                   </td>
-                  <td className="px-3 py-2 font-mono text-[#052e22]/80">
+                  <td className="px-3 py-2 font-mono text-[#04121f]/80">
                     {wo.createdAt ? new Date(wo.createdAt).toLocaleTimeString() : '—'}
                   </td>
                 </tr>
@@ -158,10 +158,10 @@ export default function ErpTab() {
 function KpiBox({ label, value, active }) {
   return (
     <div className="border border-[#00c895]/28 px-3 py-3 flex flex-col gap-1">
-      <div className={`text-2xl font-mono font-bold ${active ? 'text-[#00c895]' : 'text-[#052e22]'}`}>
+      <div className={`text-2xl font-mono font-bold ${active ? 'text-[#00c895]' : 'text-[#04121f]'}`}>
         {value}
       </div>
-      <div className="t-label uppercase tracking-widest text-[#052e22]/65 font-mono">{label}</div>
+      <div className="t-label uppercase tracking-widest text-[#04121f]/76 font-mono">{label}</div>
     </div>
   );
 }

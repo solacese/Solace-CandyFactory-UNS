@@ -191,9 +191,12 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen bg-[#ecfdf5]">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-[#00c895]/28 bg-[#ecfdf5]">
-        <h1 className="text-lg font-extrabold text-[#052e22] tracking-[0.18em] font-mono">
-          <span className="text-[#00c895]">SOLACE</span> CANDYFACTORY
+      <header className="flex items-center justify-between px-6 py-3 border-b-2 border-[#00c895]/50 bg-white">
+        <h1 className="flex items-center gap-2.5 text-xl font-extrabold tracking-[0.16em] font-mono">
+          {/* Solace accent bar */}
+          <span className="inline-block w-1.5 h-5 bg-[#00c895]" />
+          <span className="text-[#00c895]">SOLACE</span>
+          <span className="text-[#04121f]">CANDYFACTORY</span>
         </h1>
 
         {/* Presenter control bar */}
@@ -210,7 +213,7 @@ export default function App() {
             target="_blank"
             rel="noopener noreferrer"
             className="px-3 py-1.5 t-label font-mono font-bold tracking-wider border transition-colors
-              border-[#00c895]/34 text-[#052e22]/82 bg-transparent hover:border-[#00c895]/48 hover:text-[#052e22]"
+              border-[#00c895]/34 text-[#04121f]/82 bg-transparent hover:border-[#00c895]/48 hover:text-[#04121f]"
           >
             ⓘ What is UNS?
           </a>
@@ -232,8 +235,8 @@ export default function App() {
                   onClick={() => setActiveTab(tab.key)}
                   className={`px-5 py-2.5 t-label font-bold tracking-wider transition-colors relative
                     ${isActive
-                      ? 'text-[#052e22]'
-                      : 'text-[#052e22]/65 hover:text-[#052e22]/88 hover:bg-[#00c895]/[0.02]'
+                      ? 'text-[#04121f]'
+                      : 'text-[#04121f]/76 hover:text-[#04121f]/88 hover:bg-[#00c895]/[0.02]'
                     }`}
                   style={isActive ? { background: `${accent}0d` } : undefined}
                 >
@@ -259,8 +262,8 @@ export default function App() {
           {/* Panel Header */}
           <div className="px-4 py-2.5 border-b border-[#00c895]/28 flex items-center gap-2">
             <div className="w-2 h-2 bg-[#00c895] animate-live" />
-            <span className="t-data font-bold text-[#052e22]/88 tracking-widest font-mono">UNS EVENT FEED</span>
-            <span className="t-label text-[#052e22]/55 font-mono ml-auto tabular-nums">
+            <span className="t-data font-bold text-[#04121f]/88 tracking-widest font-mono">UNS EVENT FEED</span>
+            <span className="t-label text-[#04121f]/68 font-mono ml-auto tabular-nums">
               {feedRate.toFixed(1)}/s
             </span>
           </div>
@@ -283,8 +286,8 @@ export default function App() {
                   onClick={() => toggleFilter(cat)}
                   className="px-2.5 py-1 t-label font-mono font-bold uppercase tracking-wider border transition-colors"
                   style={isActive
-                    ? { borderColor: `${color}7a`, color: '#052e22', background: `${color}0d` }
-                    : { borderColor: 'rgba(6,120,90,0.28)', color: 'rgba(5,46,34,0.5)', background: 'transparent' }}
+                    ? { borderColor: `${color}7a`, color: '#04121f', background: `${color}0d` }
+                    : { borderColor: 'rgba(6,120,90,0.34)', color: 'rgba(4,18,31,0.66)', background: 'transparent' }}
                 >
                   {hasActivity && isActive && <span className="inline-block w-1.5 h-1.5 mr-1.5 align-middle" style={{ background: color }} />}
                   {cat}
@@ -296,7 +299,7 @@ export default function App() {
           {/* Event List */}
           <div className="flex-1 overflow-y-auto px-4 py-1">
             {filteredEvents.length === 0 ? (
-              <div className="t-data text-[#052e22]/50 font-mono py-4 text-center">
+              <div className="t-data text-[#04121f]/64 font-mono py-4 text-center">
                 Waiting for events...
               </div>
             ) : (
@@ -336,20 +339,20 @@ function SubscribeBar({ value, onChange, matchCount }) {
             onChange={(e) => onChange(e.target.value)}
             placeholder="subscribe to a topic…  e.g. scada/sensor/*  ·  arm/>"
             spellCheck={false}
-            className="flex-1 bg-white text-[#052e22] font-mono t-label px-2 py-1.5 placeholder-[#052e22]/40 focus:outline-none"
+            className="flex-1 bg-white text-[#04121f] font-mono t-label px-2 py-1.5 placeholder-[#04121f]/56 focus:outline-none"
           />
           {active && (
             <button
               onClick={() => onChange('')}
               title="Clear subscription"
-              className="px-2 text-[#052e22]/50 hover:text-[#ef4444] t-label font-mono"
+              className="px-2 text-[#04121f]/64 hover:text-[#ef4444] t-label font-mono"
             >
               ✕
             </button>
           )}
         </div>
         {active && (
-          <span className="t-label font-mono text-[#052e22]/55 tabular-nums shrink-0">{matchCount} match</span>
+          <span className="t-label font-mono text-[#04121f]/68 tabular-nums shrink-0">{matchCount} match</span>
         )}
       </div>
       <div className="flex flex-wrap gap-1.5">
@@ -361,8 +364,8 @@ function SubscribeBar({ value, onChange, matchCount }) {
               onClick={() => onChange(q.value)}
               className="px-2 py-0.5 t-label font-mono border transition-colors"
               style={isOn
-                ? { borderColor: '#00c895', color: '#052e22', background: 'rgba(0,200,149,0.08)' }
-                : { borderColor: 'rgba(6,120,90,0.24)', color: 'rgba(5,46,34,0.55)', background: 'transparent' }}
+                ? { borderColor: '#00c895', color: '#04121f', background: 'rgba(0,200,149,0.08)' }
+                : { borderColor: 'rgba(6,120,90,0.3)', color: 'rgba(4,18,31,0.68)', background: 'transparent' }}
             >
               {q.label}
             </button>
@@ -383,27 +386,27 @@ function TopicTree({ recentActivity, stats = {} }) {
         onClick={() => setCollapsed(!collapsed)}
         className="w-full px-4 py-2 flex items-center gap-2 text-left hover:bg-[#00c895]/[0.02] transition-colors"
       >
-        <span className="t-label text-[#052e22]/55 font-mono">{collapsed ? '▶' : '▼'}</span>
-        <span className="t-label font-mono text-[#052e22]/72 tracking-wider">TOPIC HIERARCHY</span>
-        <span className="t-label font-mono text-[#052e22]/35 tracking-wider ml-auto pr-1">evt/s</span>
+        <span className="t-label text-[#04121f]/68 font-mono">{collapsed ? '▶' : '▼'}</span>
+        <span className="t-label font-mono text-[#04121f]/82 tracking-wider">TOPIC HIERARCHY</span>
+        <span className="t-label font-mono text-[#04121f]/52 tracking-wider ml-auto pr-1">evt/s</span>
       </button>
       {!collapsed && (
         <div className="px-4 pb-3 font-mono t-label leading-relaxed">
-          <div className="text-[#052e22]/45">candyfactory/</div>
+          <div className="text-[#04121f]/60">candyfactory/</div>
 
           {/* Enterprise — company-wide business systems (L5, L4) + SAM */}
-          <div className="text-[#052e22]/45 pl-2">├─ enterprise/</div>
+          <div className="text-[#04121f]/60 pl-2">├─ enterprise/</div>
           {['orders', 'erp', 'sam'].map((cat) => (
             <TreeLeaf key={cat} cat={cat} indent="pl-5" active={recentActivity.has(cat)} stat={stats[cat]} />
           ))}
 
           {/* Site — Paris manufacturing site */}
-          <div className="text-[#052e22]/45 pl-2">└─ paris/</div>
+          <div className="text-[#04121f]/60 pl-2">└─ paris/</div>
           {/* MES lives at the site level (L3) */}
           <TreeLeaf cat="mes" indent="pl-5" active={recentActivity.has('mes')} stat={stats.mes} />
 
           {/* Area / production line — shop-floor equipment (L2, L0-1) */}
-          <div className="text-[#052e22]/45 pl-5">└─ packing/line1/</div>
+          <div className="text-[#04121f]/60 pl-5">└─ packing/line1/</div>
           {['scada', 'arm', 'hitl'].map((cat) => (
             <TreeLeaf key={cat} cat={cat} indent="pl-8" active={recentActivity.has(cat)} stat={stats[cat]} />
           ))}
@@ -419,11 +422,11 @@ function TreeLeaf({ cat, indent, active, stat }) {
   const color = TOPIC_COLORS[cat] || '#00c895';
   return (
     <div className={`${indent} flex items-center gap-1`}>
-      <span className="text-[#052e22]/45">├─</span>
-      <span style={active ? { color } : undefined} className={active ? '' : 'text-[#052e22]/55'}>{cat}/</span>
+      <span className="text-[#04121f]/60">├─</span>
+      <span style={active ? { color } : undefined} className={active ? '' : 'text-[#04121f]/68'}>{cat}/</span>
       {active && <span className="w-1 h-1 animate-live" style={{ background: color }} />}
       <span className="ml-auto tabular-nums">
-        <span style={rate > 0 ? { color } : undefined} className={rate > 0 ? '' : 'text-[#052e22]/30'}>{rate.toFixed(1)}/s</span>
+        <span style={rate > 0 ? { color } : undefined} className={rate > 0 ? '' : 'text-[#04121f]/48'}>{rate.toFixed(1)}/s</span>
       </span>
     </div>
   );
@@ -464,16 +467,16 @@ function EventRow({ event }) {
 
   return (
     <div className={rowClass}>
-      <span className="text-[#052e22]/50 shrink-0 w-[62px]">{time}</span>
+      <span className="text-[#04121f]/64 shrink-0 w-[62px]">{time}</span>
       {isChaos && <span className="text-[#ef4444] shrink-0" title="Injected disruption">⚠</span>}
       {isSamFix && <span className="text-[#7c3aed] shrink-0" title="SAM corrective action">✓</span>}
       <span
         className="truncate flex-1"
-        style={isChaos ? { color: '#ef4444', fontWeight: 500 } : catColor ? { color: catColor } : { color: 'rgba(5,46,34,0.88)' }}
+        style={isChaos ? { color: '#ef4444', fontWeight: 500 } : catColor ? { color: catColor } : { color: 'rgba(4,18,31,0.88)' }}
       >
         {shortTopic}
       </span>
-      <span className={`truncate max-w-[90px] ${isChaos ? 'text-[#ef4444]/80' : 'text-[#052e22]/55'}`}>{preview}</span>
+      <span className={`truncate max-w-[90px] ${isChaos ? 'text-[#ef4444]/80' : 'text-[#04121f]/68'}`}>{preview}</span>
     </div>
   );
 }
@@ -486,7 +489,7 @@ function ControlButton({ onClick, label, active }) {
       className={`px-3 py-1.5 t-label font-mono font-bold tracking-wider border transition-colors
         ${active
           ? 'border-[#00c895]/60 text-[#00c895] bg-[#00c895]/5 hover:bg-[#00c895]/10'
-          : 'border-[#00c895]/34 text-[#052e22]/82 bg-transparent hover:border-[#00c895]/48 hover:text-[#052e22]'
+          : 'border-[#00c895]/34 text-[#04121f]/82 bg-transparent hover:border-[#00c895]/48 hover:text-[#04121f]'
         }`}
     >
       {label}
@@ -525,7 +528,7 @@ function RoleBadge({ isOrchestrator }) {
       }
     >
       <div className={`w-1.5 h-1.5 ${isOrchestrator ? 'bg-[#00c895]' : 'bg-[#00c895]/20'}`} />
-      <span className="t-label text-[#052e22]/65 uppercase font-mono tracking-wider">
+      <span className="t-label text-[#04121f]/76 uppercase font-mono tracking-wider">
         {isOrchestrator ? 'ORCHESTRATOR' : 'VIEWER'}
       </span>
     </div>
@@ -538,7 +541,7 @@ function ConnectionBadge({ status }) {
   return (
     <div className="flex items-center gap-2">
       <div className={`w-2 h-2 ${isConnected ? 'bg-[#00c895] animate-live' : 'bg-[#00c895]/30'}`} />
-      <span className="t-label text-[#052e22]/65 uppercase font-mono tracking-wider">{status}</span>
+      <span className="t-label text-[#04121f]/76 uppercase font-mono tracking-wider">{status}</span>
     </div>
   );
 }

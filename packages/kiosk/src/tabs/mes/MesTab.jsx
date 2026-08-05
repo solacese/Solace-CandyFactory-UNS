@@ -22,7 +22,7 @@ function OeeArcGauge({ value }) {
         <path
           d={`M ${strokeWidth / 2} ${size / 2} A ${radius} ${radius} 0 0 1 ${size - strokeWidth / 2} ${size / 2}`}
           fill="none"
-          stroke="rgba(5,46,34,0.08)"
+          stroke="rgba(4,18,31,0.08)"
           strokeWidth={strokeWidth}
         />
         <path
@@ -35,17 +35,17 @@ function OeeArcGauge({ value }) {
           className="transition-all duration-700"
         />
       </svg>
-      <span className="text-3xl font-mono text-[#052e22] -mt-8">{percentage}%</span>
-      <span className="t-label text-[#052e22]/65 uppercase tracking-widest mt-1">OEE</span>
+      <span className="text-3xl font-mono text-[#04121f] -mt-8">{percentage}%</span>
+      <span className="t-label text-[#04121f]/76 uppercase tracking-widest mt-1">OEE</span>
     </div>
   );
 }
 
 // ─── PRODUCTION PIPELINE ────────────────────────────────────────────────
 const STATE_STYLE = {
-  queued: { dot: 'bg-[#052e22]/30', border: 'border-[#052e22]/15', text: 'text-[#052e22]/70' },
-  active: { dot: 'bg-[#00c895] animate-live', border: 'border-[#00c895]/50', text: 'text-[#052e22]' },
-  done: { dot: 'bg-[#00c895]/40', border: 'border-[#00c895]/22', text: 'text-[#052e22]/55' },
+  queued: { dot: 'bg-[#04121f]/48', border: 'border-[#04121f]/15', text: 'text-[#04121f]/80' },
+  active: { dot: 'bg-[#00c895] animate-live', border: 'border-[#00c895]/50', text: 'text-[#04121f]' },
+  done: { dot: 'bg-[#00c895]/40', border: 'border-[#00c895]/22', text: 'text-[#04121f]/68' },
 };
 
 function PipelineColumn({ title, items, state, accent }) {
@@ -54,8 +54,8 @@ function PipelineColumn({ title, items, state, accent }) {
     <div className="flex-1 min-w-0 flex flex-col">
       <div className="flex items-center gap-2 mb-1.5 px-0.5">
         <span className={`w-1.5 h-1.5 ${s.dot}`} />
-        <span className="t-label text-[#052e22]/65 uppercase tracking-wider">{title}</span>
-        <span className="t-label font-mono text-[#052e22]/45 ml-auto">{items.length}</span>
+        <span className="t-label text-[#04121f]/76 uppercase tracking-wider">{title}</span>
+        <span className="t-label font-mono text-[#04121f]/60 ml-auto">{items.length}</span>
       </div>
       <div className="space-y-1 min-h-[120px] max-h-[120px] overflow-y-auto pr-0.5">
         {items.slice(0, 8).map((wo) => (
@@ -65,13 +65,13 @@ function PipelineColumn({ title, items, state, accent }) {
           >
             <span className="truncate">{wo.workOrderId}</span>
             {wo.totalUnits ? (
-              <span className="shrink-0 text-[#052e22]/45">
+              <span className="shrink-0 text-[#04121f]/60">
                 {state === 'done' ? `${wo.packaged}/${wo.totalUnits}` : state === 'active' ? `${wo.packaged}/${wo.totalUnits}` : `${wo.totalUnits}u`}
               </span>
             ) : null}
           </div>
         ))}
-        {items.length === 0 && <div className="px-2 py-1 t-label text-[#052e22]/35">—</div>}
+        {items.length === 0 && <div className="px-2 py-1 t-label text-[#04121f]/52">—</div>}
       </div>
     </div>
   );
@@ -93,9 +93,9 @@ function BatchProgress({ active }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="t-label text-[#052e22]/65 uppercase tracking-wider">Active Batch</span>
+        <span className="t-label text-[#04121f]/76 uppercase tracking-wider">Active Batch</span>
         {active && (
-          <span className="t-label font-mono text-[#052e22]/82 border border-[#00c895]/28 px-1.5 py-0.5">
+          <span className="t-label font-mono text-[#04121f]/82 border border-[#00c895]/28 px-1.5 py-0.5">
             {active.workOrderId}
           </span>
         )}
@@ -104,21 +104,21 @@ function BatchProgress({ active }) {
       {active ? (
         <>
           <div className="flex items-baseline justify-between font-mono">
-            <span className="text-2xl text-[#052e22]">
+            <span className="text-2xl text-[#04121f]">
               {active.packaged}
-              <span className="text-[#052e22]/45 text-lg"> / {active.totalUnits}</span>
+              <span className="text-[#04121f]/60 text-lg"> / {active.totalUnits}</span>
             </span>
-            <span className="t-label text-[#052e22]/55 uppercase tracking-wider">units packaged</span>
+            <span className="t-label text-[#04121f]/68 uppercase tracking-wider">units packaged</span>
           </div>
           <div className="h-1.5 bg-[#00c895]/10 overflow-hidden">
             <div className="h-full bg-[#00c895] transition-all duration-500" style={{ width: `${pct}%` }} />
           </div>
           {active.customer && (
-            <div className="t-label font-mono text-[#052e22]/55">for {active.customer}</div>
+            <div className="t-label font-mono text-[#04121f]/68">for {active.customer}</div>
           )}
         </>
       ) : (
-        <div className="t-label font-mono text-[#052e22]/45 py-3">Line idle — awaiting released work order.</div>
+        <div className="t-label font-mono text-[#04121f]/60 py-3">Line idle — awaiting released work order.</div>
       )}
     </div>
   );
@@ -131,14 +131,14 @@ function StatBox({ label, value, unit, target, dir, warnBand }) {
   return (
     <div className="flex-1 border border-[#00c895]/28 px-3 py-2 flex flex-col">
       <div className="flex items-center justify-between">
-        <div className="t-label text-[#052e22]/55 uppercase tracking-wider">{label}</div>
+        <div className="t-label text-[#04121f]/68 uppercase tracking-wider">{label}</div>
         <span className="w-1.5 h-1.5 rounded-card" style={{ backgroundColor: color }} />
       </div>
       <div className="flex items-baseline gap-1 mt-0.5">
         <span className="text-2xl font-mono" style={{ color }}>{value}</span>
-        <span className="t-label font-mono text-[#052e22]/55">{unit}</span>
+        <span className="t-label font-mono text-[#04121f]/68">{unit}</span>
       </div>
-      <div className="t-label font-mono text-[#052e22]/45 mt-0.5">
+      <div className="t-label font-mono text-[#04121f]/60 mt-0.5">
         target {dir === 'lower' ? '≤' : '≥'} {target}{unit}
       </div>
     </div>
@@ -181,21 +181,21 @@ function describe(evt) {
 
 const KIND_COLOR = {
   done: 'text-[#00c895]',
-  ok: 'text-[#052e22]/82',
+  ok: 'text-[#04121f]/82',
   fail: 'text-[#ef4444]',
-  info: 'text-[#052e22]/72',
-  muted: 'text-[#052e22]/45',
+  info: 'text-[#04121f]/82',
+  muted: 'text-[#04121f]/60',
 };
 
 function LogRow({ evt }) {
   const d = describe(evt);
   return (
     <div className="flex items-center gap-2 font-mono t-label py-0.5 border-b border-[#00c895]/[0.05]">
-      <span className="text-[#052e22]/40 shrink-0">
+      <span className="text-[#04121f]/56 shrink-0">
         {new Date(evt._receivedAt).toLocaleTimeString('en-GB', { hour12: false })}
       </span>
       <span className={`${KIND_COLOR[d.kind]} flex-1 truncate`}>{d.text}</span>
-      {d.wo && <span className="text-[#052e22]/50 shrink-0">{d.wo}</span>}
+      {d.wo && <span className="text-[#04121f]/64 shrink-0">{d.wo}</span>}
     </div>
   );
 }
@@ -267,7 +267,7 @@ export default function MesTab() {
         {/* ─── LEFT: OEE + BATCH ─────────────────────────────── */}
         <div className="col-span-5 flex flex-col gap-3">
           <div className="border border-[#00c895]/28 bg-white p-4">
-            <div className="t-label text-[#052e22]/65 uppercase tracking-wider mb-3">Overall Equipment Effectiveness</div>
+            <div className="t-label text-[#04121f]/76 uppercase tracking-wider mb-3">Overall Equipment Effectiveness</div>
             <div className="flex items-center gap-4">
               <OeeArcGauge value={kpi.oee} />
               <div className="flex flex-col gap-1.5 font-mono t-data">
@@ -286,21 +286,21 @@ export default function MesTab() {
         {/* ─── RIGHT: PIPELINE + LOG + STATS ─────────────────── */}
         <div className="col-span-7 flex flex-col gap-3">
           <div className="border border-[#00c895]/28 bg-white p-4">
-            <div className="t-label text-[#052e22]/65 uppercase tracking-wider mb-2">Production Pipeline</div>
+            <div className="t-label text-[#04121f]/76 uppercase tracking-wider mb-2">Production Pipeline</div>
             <ProductionPipeline pipeline={pipeline} />
           </div>
 
           <div className="border border-[#00c895]/28 bg-white p-3 flex-1 min-h-0">
             <div className="flex items-center justify-between mb-1">
-              <span className="t-label text-[#052e22]/65 uppercase tracking-wider">Event Log</span>
-              <span className="t-label font-mono text-[#052e22]/45">{events.length}</span>
+              <span className="t-label text-[#04121f]/76 uppercase tracking-wider">Event Log</span>
+              <span className="t-label font-mono text-[#04121f]/60">{events.length}</span>
             </div>
             <div className="max-h-[150px] overflow-y-auto">
               {events.slice(0, 40).map((evt, i) => (
                 <LogRow key={evt.eventId || i} evt={evt} />
               ))}
               {events.length === 0 && (
-                <div className="t-label font-mono text-[#052e22]/45 py-2">Awaiting MES events...</div>
+                <div className="t-label font-mono text-[#04121f]/60 py-2">Awaiting MES events...</div>
               )}
             </div>
           </div>
@@ -312,9 +312,9 @@ export default function MesTab() {
 
 function Row({ label, name, value }) {
   return (
-    <div className="flex items-center gap-2 text-[#052e22]/82">
-      <span className="text-[#052e22]/45 t-label w-3">{label}</span>
-      <span className="w-[110px] t-label text-[#052e22]/55 uppercase tracking-wider">{name}</span>
+    <div className="flex items-center gap-2 text-[#04121f]/82">
+      <span className="text-[#04121f]/60 t-label w-3">{label}</span>
+      <span className="w-[110px] t-label text-[#04121f]/68 uppercase tracking-wider">{name}</span>
       <span>{(value * 100).toFixed(1)}%</span>
     </div>
   );

@@ -8,14 +8,14 @@
   --color-accent: #00c895;             /* Solace green */
   --color-accent-soft: #5eead4;        /* teal-300 */
   --color-accent-dim: rgba(0,200,149,0.14);
-  --color-ink: #052e22;                /* primary text — near-black green */
-  --color-ink-dim: rgba(5,46,34,0.78);
-  --color-ink-muted: rgba(5,46,34,0.55);
+  --color-ink: #04121f;                /* primary text — Solace near-black blue */
+  --color-ink-dim: rgba(4,18,31,0.86);
+  --color-ink-muted: rgba(4,18,31,0.66);
 }
 
 * {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-weight: 300;                     /* light-weight by default */
+  font-weight: 400;                     /* regular by default — higher contrast */
   border-radius: 0 !important;
   -webkit-font-smoothing: antialiased;
 }
@@ -23,7 +23,7 @@
 body {
   margin: 0;
   background: #e6faf3;
-  color: #052e22;
+  color: #04121f;
   overflow: hidden;
   height: 100vh;
 }
@@ -42,11 +42,13 @@ body {
 /* Monospace for data */
 .font-mono {
   font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
-  font-weight: 400;
+  font-weight: 500;
 }
 
-/* Headings / emphasis stay medium, never heavy */
-b, strong, .font-bold, .font-semibold { font-weight: 500 !important; }
+/* Headings / emphasis — stronger for real contrast */
+b, strong, .font-semibold { font-weight: 600 !important; }
+.font-bold { font-weight: 700 !important; }
+.font-extrabold { font-weight: 800 !important; }
 
 /* Rounded pill corners allowed on explicit .pill (overrides global reset) */
 .pill { border-radius: 9999px !important; }
@@ -57,9 +59,9 @@ b, strong, .font-bold, .font-semibold { font-weight: 500 !important; }
    .t-label  micro uppercase labels
    .t-data   default reading / data size
    .t-title  section titles                                */
-.t-label { font-size: 11px; line-height: 1.4; letter-spacing: 0.08em; font-weight: 400; }
-.t-data  { font-size: 13px; line-height: 1.5; font-weight: 400; }
-.t-title { font-size: 15px; line-height: 1.4; font-weight: 500; }
+.t-label { font-size: 11px; line-height: 1.4; letter-spacing: 0.08em; font-weight: 500; }
+.t-data  { font-size: 13px; line-height: 1.5; font-weight: 450; }
+.t-title { font-size: 15px; line-height: 1.4; font-weight: 600; }
 
 /* Single animation: subtle opacity */
 @keyframes pulse-live {
