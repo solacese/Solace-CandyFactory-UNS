@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSolaceConnection, useAllEvents } from './broker/useSolace.js';
-import { TOPIC_CATEGORIES } from './constants/theme.js';
+import { TOPIC_CATEGORIES, TOPIC_COLORS } from './constants/theme.js';
 import { shortTopic as stripPrefix } from './constants/topics.js';
 import { SimulationEngine } from './simulation/SimulationEngine.js';
 import MarketplaceTab from './tabs/marketplace/MarketplaceTab.jsx';
@@ -8,6 +8,7 @@ import ErpTab from './tabs/erp/ErpTab.jsx';
 import MesTab from './tabs/mes/MesTab.jsx';
 import ScadaTab from './tabs/scada/ScadaTab.jsx';
 import ArmTab from './tabs/arm/ArmTab.jsx';
+import SamTab from './tabs/sam/SamTab.jsx';
 
 const TABS = [
   { key: 'marketplace', label: 'MARKETPLACE', component: MarketplaceTab },
@@ -15,6 +16,7 @@ const TABS = [
   { key: 'mes', label: 'MES', component: MesTab },
   { key: 'scada', label: 'SCADA', component: ScadaTab },
   { key: 'arm', label: 'ARM', component: ArmTab },
+  { key: 'sam', label: 'SAM', component: SamTab, accent: '#7c3aed' },
 ];
 
 export default function App() {
@@ -43,8 +45,30 @@ export default function App() {
     }
   }, [connectionStatus]);
 
+  // Chaos button: 5s cooldown surfaced as a live countdown so the presenter
+  // can see when it re-arms. Auto-jumps to the SAM tab so the resolution is
+  // visible the moment a disruption is injected.
+  const [chaosCooldown, setChaosCooldown] = useState(0); // seconds remaining
+  useEffect(() => {
+    if (chaosCooldown <= 0) return;
+    const id = setInterval(() => {
+      const left = Math.ceil((engineRef.current?.chaosCooldownRemaining() ?? 0) / 1000);
+      setChaosCooldown(left);
+      if (left <= 0) clearInterval(id);
+    }, 200);
+    return () => clearInterval(id);
+  }, [chaosCooldown]);
+
   function handleTriggerOrder() {
     engineRef.current?.triggerOrder();
+  }
+
+  function handleTriggerChaos() {
+    const fired = engineRef.current?.triggerChaos();
+    if (fired) {
+      setActiveTab('sam');
+      setChaosCooldown(Math.ceil((engineRef.current?.chaosCooldownRemaining() ?? 5000) / 1000));
+    }
   }
 
   function handleToggleAutoDemo() {
@@ -76,6 +100,9 @@ export default function App() {
     if (activeFilters.size === TOPIC_CATEGORIES.length) return visibleEvents;
     return visibleEvents.filter((evt) => {
       const category = getCategoryFromTopic(evt.topic);
+      // Injected disruptions always stay visible so a fault is never hidden
+      // by an active filter — they're the whole point of the chaos demo.
+      if (category === 'chaos' || evt.payload?.chaos === true) return true;
       return category && activeFilters.has(category);
     });
   }, [visibleEvents, activeFilters]);
@@ -146,13 +173,14 @@ export default function App() {
     <div className="flex flex-col h-screen bg-[#ecfdf5]">
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-3 border-b border-[#00c895]/28 bg-[#ecfdf5]">
-        <h1 className="t-title font-semibold text-[#052e22] tracking-widest font-mono">
+        <h1 className="text-lg font-extrabold text-[#052e22] tracking-[0.18em] font-mono">
           <span className="text-[#00c895]">SOLACE</span> CANDYFACTORY
         </h1>
 
         {/* Presenter control bar */}
         <div className="flex items-center gap-2">
           <ControlButton onClick={handleTriggerOrder} label="▶ Trigger random order" />
+          <ChaosButton onClick={handleTriggerChaos} cooldown={chaosCooldown} />
           <ControlButton
             onClick={handleToggleAutoDemo}
             label={autoDemo ? '⏸ Auto-demo on' : '▷ Auto-demo off'}
@@ -178,19 +206,21 @@ export default function App() {
           <nav className="flex border-b border-[#00c895]/28 bg-[#ecfdf5]">
             {TABS.map((tab) => {
               const isActive = activeTab === tab.key;
+              const accent = tab.accent || '#00c895';
               return (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
                   className={`px-5 py-2.5 t-label font-bold tracking-wider transition-colors relative
                     ${isActive
-                      ? 'text-[#052e22] bg-[#00c895]/5'
+                      ? 'text-[#052e22]'
                       : 'text-[#052e22]/65 hover:text-[#052e22]/88 hover:bg-[#00c895]/[0.02]'
                     }`}
+                  style={isActive ? { background: `${accent}0d` } : undefined}
                 >
                   {tab.label}
                   {isActive && (
-                    <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#00c895]" />
+                    <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: accent }} />
                   )}
                 </button>
               );
@@ -224,17 +254,17 @@ export default function App() {
             {TOPIC_CATEGORIES.map((cat) => {
               const isActive = activeFilters.has(cat);
               const hasActivity = recentActivity.has(cat);
+              const color = TOPIC_COLORS[cat] || '#00c895';
               return (
                 <button
                   key={cat}
                   onClick={() => toggleFilter(cat)}
-                  className={`px-2.5 py-1 t-label font-mono font-bold uppercase tracking-wider border transition-colors
-                    ${isActive
-                      ? 'border-[#00c895]/48 text-[#052e22] bg-[#00c895]/5'
-                      : 'border-[#00c895]/28 text-[#052e22]/50 bg-transparent'
-                    }`}
+                  className="px-2.5 py-1 t-label font-mono font-bold uppercase tracking-wider border transition-colors"
+                  style={isActive
+                    ? { borderColor: `${color}7a`, color: '#052e22', background: `${color}0d` }
+                    : { borderColor: 'rgba(6,120,90,0.28)', color: 'rgba(5,46,34,0.5)', background: 'transparent' }}
                 >
-                  {hasActivity && isActive && <span className="inline-block w-1.5 h-1.5 bg-[#00c895] mr-1.5 align-middle" />}
+                  {hasActivity && isActive && <span className="inline-block w-1.5 h-1.5 mr-1.5 align-middle" style={{ background: color }} />}
                   {cat}
                 </button>
               );
@@ -277,9 +307,9 @@ function TopicTree({ recentActivity, stats = {} }) {
         <div className="px-4 pb-3 font-mono t-label leading-relaxed">
           <div className="text-[#052e22]/45">candyfactory/</div>
 
-          {/* Enterprise — company-wide business systems (L5, L4) */}
+          {/* Enterprise — company-wide business systems (L5, L4) + SAM */}
           <div className="text-[#052e22]/45 pl-2">├─ enterprise/</div>
-          {['orders', 'erp'].map((cat) => (
+          {['orders', 'erp', 'sam'].map((cat) => (
             <TreeLeaf key={cat} cat={cat} indent="pl-5" active={recentActivity.has(cat)} stat={stats[cat]} />
           ))}
 
@@ -303,13 +333,14 @@ function TopicTree({ recentActivity, stats = {} }) {
 function TreeLeaf({ cat, indent, active, stat }) {
   const rate = stat?.rate ?? 0;
   const lastMin = stat?.lastMin ?? 0;
+  const color = TOPIC_COLORS[cat] || '#00c895';
   return (
     <div className={`${indent} flex items-center gap-1`}>
       <span className="text-[#052e22]/45">├─</span>
-      <span className={active ? 'text-[#00c895]' : 'text-[#052e22]/55'}>{cat}/</span>
-      {active && <span className="w-1 h-1 bg-[#00c895] animate-live" />}
+      <span style={active ? { color } : undefined} className={active ? '' : 'text-[#052e22]/55'}>{cat}/</span>
+      {active && <span className="w-1 h-1 animate-live" style={{ background: color }} />}
       <span className="ml-auto flex items-center gap-2 tabular-nums">
-        <span className={rate > 0 ? 'text-[#00c895]' : 'text-[#052e22]/30'}>{rate.toFixed(1)}/s</span>
+        <span style={rate > 0 ? { color } : undefined} className={rate > 0 ? '' : 'text-[#052e22]/30'}>{rate.toFixed(1)}/s</span>
         <span className="text-[#052e22]/40 w-[52px] text-right">{lastMin}/min</span>
       </span>
     </div>
@@ -323,23 +354,44 @@ function EventRow({ event }) {
     ? new Date(event._receivedAt).toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : '';
 
+  const p = event.payload || {};
+  // Chaos = a deliberately injected fault. samFix / recovered = SAM's answer.
+  const isChaos = p.chaos === true;
+  const isSamFix = p.samFix === true || p.recovered === true;
+  const cat = getCategoryFromTopic(event.topic);
+  const catColor = TOPIC_COLORS[cat];
+
   // Compact payload preview
   let preview = '';
   if (event.payload) {
-    const p = event.payload;
-    if (p.status) preview = p.status;
+    if (p.error) preview = p.error;
+    else if (p.status) preview = p.status;
     else if (p.commandType) preview = p.commandType;
+    else if (p.reasoning) preview = 'reasoning';
+    else if (p.action) preview = p.action;
     else if (p.customerName) preview = p.customerName;
+    else if (p.customer?.name) preview = p.customer.name;
     else preview = JSON.stringify(p).slice(0, 40);
   } else if (event.correlationId) {
     preview = event.correlationId.slice(0, 8);
   }
 
+  const rowClass = isChaos
+    ? 'py-1 flex items-start gap-2.5 border-b border-[#ef4444]/15 bg-[#ef4444]/[0.06] t-data font-mono leading-snug'
+    : 'py-1 flex items-start gap-2.5 border-b border-[#00c895]/[0.04] t-data font-mono leading-snug';
+
   return (
-    <div className="py-1 flex items-start gap-2.5 border-b border-[#00c895]/[0.04] t-data font-mono leading-snug">
+    <div className={rowClass}>
       <span className="text-[#052e22]/50 shrink-0 w-[62px]">{time}</span>
-      <span className="text-[#052e22]/88 truncate flex-1">{shortTopic}</span>
-      <span className="text-[#052e22]/55 truncate max-w-[90px]">{preview}</span>
+      {isChaos && <span className="text-[#ef4444] shrink-0" title="Injected disruption">⚠</span>}
+      {isSamFix && <span className="text-[#7c3aed] shrink-0" title="SAM corrective action">✓</span>}
+      <span
+        className="truncate flex-1"
+        style={isChaos ? { color: '#ef4444', fontWeight: 500 } : catColor ? { color: catColor } : { color: 'rgba(5,46,34,0.88)' }}
+      >
+        {shortTopic}
+      </span>
+      <span className={`truncate max-w-[90px] ${isChaos ? 'text-[#ef4444]/80' : 'text-[#052e22]/55'}`}>{preview}</span>
     </div>
   );
 }
@@ -356,6 +408,25 @@ function ControlButton({ onClick, label, active }) {
         }`}
     >
       {label}
+    </button>
+  );
+}
+
+/* ─── Chaos Button (red, 5s cooldown) ─────────────────────────── */
+function ChaosButton({ onClick, cooldown }) {
+  const cooling = cooldown > 0;
+  return (
+    <button
+      onClick={onClick}
+      disabled={cooling}
+      title={cooling ? `Re-arms in ${cooldown}s` : 'Inject a disruption for SAM to solve'}
+      className={`px-3 py-1.5 t-label font-mono font-bold tracking-wider border transition-colors tabular-nums
+        ${cooling
+          ? 'border-[#ef4444]/25 text-[#ef4444]/50 bg-transparent cursor-not-allowed'
+          : 'border-[#ef4444]/55 text-[#ef4444] bg-[#ef4444]/5 hover:bg-[#ef4444]/10 hover:border-[#ef4444]'
+        }`}
+    >
+      {cooling ? `⚡ Chaos (${cooldown}s)` : '⚡ Trigger chaos'}
     </button>
   );
 }
@@ -400,5 +471,7 @@ function getCategoryFromTopic(topic) {
   if (short.startsWith('scada/')) return 'scada';
   if (short.startsWith('arm/')) return 'arm';
   if (short.startsWith('hitl/')) return 'hitl';
+  if (short.startsWith('sam/')) return 'sam';
+  if (short.startsWith('chaos/')) return 'chaos';
   return null;
 }

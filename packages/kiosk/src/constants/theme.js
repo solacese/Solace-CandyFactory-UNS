@@ -26,6 +26,8 @@ export const LEVELS = {
 };
 
 // Deeper, distinguishable hues per UNS layer — green→teal→cyan family.
+// SAM sits off the ISA ladder (autonomous ops) so it gets a violet accent;
+// chaos is always red so injected faults are unmistakable in the feed.
 export const TOPIC_COLORS = {
   orders: '#00c895',
   erp: '#059669',
@@ -33,9 +35,14 @@ export const TOPIC_COLORS = {
   scada: '#0891b2',
   arm: '#0369a1',
   hitl: '#f59e0b',
+  sam: '#7c3aed',
+  chaos: '#ef4444',
 };
 
-export const TOPIC_CATEGORIES = ['orders', 'erp', 'mes', 'scada', 'arm', 'hitl'];
+// Feed filter chips + tree leaves. `chaos` is intentionally omitted from the
+// tree (it's a cross-cutting fault flag, not a UNS location) but included as a
+// feed filter so an operator can isolate disruptions.
+export const TOPIC_CATEGORIES = ['orders', 'erp', 'mes', 'scada', 'arm', 'hitl', 'sam'];
 
 // ─── Status colors (KPI / sensor vs target) ────────────────────
 // Shared by MES stats and SCADA sensors so "on-target / warning / bad"

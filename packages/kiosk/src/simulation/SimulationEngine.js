@@ -8,7 +8,8 @@
  * 4. Auto-demo mode: place an order automatically if idle 30s
  */
 import { onMessage, publishMessage } from '../broker/connection.js';
-import { MARKETPLACE, ERP, MES, SCADA, ARM, SYSTEM } from '../constants/topics.js';
+import { MARKETPLACE, ERP, MES, SCADA, ARM, SAM, CHAOS, SYSTEM } from '../constants/topics.js';
+import { CHAOS_LIBRARY, SAM_AGENTS, agentFor, randomChaos } from '../constants/chaos.js';
 import {
   SENSORS,
   ALARM_TYPES,
@@ -87,6 +88,10 @@ export class SimulationEngine {
     this._isOrchestrator = false;
     this._autoDemoEnabled = true;
     this._onRoleChange = null; // (isOrchestrator) => void
+
+    // ─── Chaos / SAM ────────────────────────────────────────────
+    this._chaosCooldownMs = 5000;  // presenter can inject at most every 5s
+    this._lastChaosAt = 0;
   }
 
   /** Register a callback fired when this instance's orchestrator role flips. */
@@ -795,5 +800,125 @@ export class SimulationEngine {
         source: 'auto-demo',
       })
     );
+  }
+
+  // ─── Chaos + SAM (Solace Agent Mesh) ─────────────────────────
+  // Presenter injects a disruption; a SAM agent detects it, reasons about
+  // it, publishes a corrective action, and closes the incident. The whole
+  // timeline is scripted from CHAOS_LIBRARY so it's instant and reliable.
+
+  /** Ms until the chaos button is armed again (0 = ready). */
+  chaosCooldownRemaining() {
+    const left = this._chaosCooldownMs - (Date.now() - this._lastChaosAt);
+    return left > 0 ? left : 0;
+  }
+
+  /**
+   * Presenter control: inject one disruption (random, or a specific id).
+   * Enforces the 5s cooldown and returns false if still cooling down.
+   */
+  triggerChaos(chaosId = null) {
+    if (this.chaosCooldownRemaining() > 0) return false;
+    this._lastChaosAt = Date.now();
+    const chaos = chaosId
+      ? CHAOS_LIBRARY.find((c) => c.id === chaosId) || randomChaos()
+      : randomChaos();
+    this._injectChaos(chaos);
+    return true;
+  }
+
+  _injectChaos(chaos) {
+    const correlationId = uuid();
+    const incidentId = `INC-${Date.now().toString(36).toUpperCase()}`;
+    const agent = agentFor(chaos.id);
+
+    // 1) The faulty event itself — flagged chaos:true so the feed shows red.
+    const faultPayload = { ...chaos.inject.payload(), incidentId, chaosId: chaos.id };
+    publishMessage(
+      chaos.inject.topic,
+      envelope(chaos.inject.source || 'chaos-injector', correlationId, faultPayload)
+    );
+
+    // 1b) A meta chaos/raised event so the SAM tab & feed can headline it.
+    publishMessage(
+      CHAOS.RAISED,
+      envelope('chaos-injector', correlationId, {
+        chaos: true,
+        incidentId,
+        chaosId: chaos.id,
+        label: chaos.label,
+        layer: chaos.layer,
+        severity: chaos.severity,
+        detail: chaos.detect,
+      })
+    );
+
+    // 2) SAM detects (+600ms) — the agent mesh picks it up.
+    this._setTimeout(() => {
+      publishMessage(
+        SAM.INCIDENT_DETECTED,
+        envelope(`sam-${agent.id}`, correlationId, {
+          incidentId,
+          chaosId: chaos.id,
+          agent: agent.id,
+          agentName: agent.name,
+          label: chaos.label,
+          layer: chaos.layer,
+          severity: chaos.severity,
+          detail: chaos.detect,
+        })
+      );
+
+      // 3) SAM reasons (+700ms after detect) — one LLM-style line.
+      this._setTimeout(() => {
+        publishMessage(
+          SAM.AGENT_REASONING,
+          envelope(`sam-${agent.id}`, correlationId, {
+            incidentId,
+            chaosId: chaos.id,
+            agent: agent.id,
+            agentName: agent.name,
+            reasoning: chaos.reasoning,
+          })
+        );
+
+        // 4) SAM acts + resolves (after the agent's "think" time).
+        this._setTimeout(() => {
+          if (!this._running) return;
+          const fixPayload = { ...chaos.fix.payload({ incidentId, correlationId }), incidentId, chaosId: chaos.id, samFix: true };
+          publishMessage(
+            chaos.fix.topic,
+            envelope(chaos.fix.source || `sam-${agent.id}`, correlationId, fixPayload)
+          );
+
+          // Announce the concrete action taken, then close the incident.
+          publishMessage(
+            SAM.ACTION_TAKEN,
+            envelope(`sam-${agent.id}`, correlationId, {
+              incidentId,
+              chaosId: chaos.id,
+              agent: agent.id,
+              agentName: agent.name,
+              action: fixPayload.note || 'Corrective action published',
+              actionTopic: chaos.fix.topic,
+            })
+          );
+
+          this._setTimeout(() => {
+            publishMessage(
+              SAM.INCIDENT_RESOLVED,
+              envelope(`sam-${agent.id}`, correlationId, {
+                incidentId,
+                chaosId: chaos.id,
+                agent: agent.id,
+                agentName: agent.name,
+                label: chaos.label,
+                resolvedMs: chaos.resolveMs,
+              })
+            );
+          }, 400);
+        }, chaos.resolveMs);
+      }, 700);
+    }, 600);
   }
 }

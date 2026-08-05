@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { connectBroker, subscribeTopic, onMessage, publishMessage, getStatus, onStatusChange } from './connection.js';
+import { WILDCARDS, PREFIXES } from '../constants/topics.js';
+
+// Root wildcard subscription + the bare root prefix, so the UNS topic root is
+// defined in exactly one place (constants/topics.js) and never drifts.
+const ROOT_WILDCARD = WILDCARDS.ALL;          // e.g. "candyfactory/>"
+const ROOT_PREFIX = `${PREFIXES.ROOT}/`;      // e.g. "candyfactory/"
 
 /**
  * Hook: manage Solace connection lifecycle.
@@ -10,7 +16,7 @@ export function useSolaceConnection() {
   useEffect(() => {
     const unsub = onStatusChange(setStatus);
     connectBroker()
-      .then(() => subscribeTopic('haribot/>'))
+      .then(() => subscribeTopic(ROOT_WILDCARD))
       .catch((err) => console.error('[useSolace]', err.message));
     return unsub;
   }, []);
@@ -29,7 +35,7 @@ export function useSubscription(topicPrefix, maxEvents = 50) {
 
   useEffect(() => {
     const unsub = onMessage((topic, payload) => {
-      if (topic.startsWith(prefixRef.current) || prefixRef.current === 'haribot/') {
+      if (topic.startsWith(prefixRef.current) || prefixRef.current === ROOT_PREFIX) {
         setEvents((prev) => {
           const next = [{ topic, ...payload, _receivedAt: Date.now() }, ...prev];
           return next.slice(0, maxEvents);

@@ -51,8 +51,8 @@ export function connectBroker() {
 }
 
 /**
- * Subscribe is a no-op here: the kiosk subscribes with the broad 'haribot/>'
- * filter and every simulated topic lives under 'haribot/', so a real broker
+ * Subscribe is a no-op here: the kiosk subscribes with the broad 'candyfactory/>'
+ * filter and every simulated topic lives under 'candyfactory/', so a real broker
  * would fan every message out to this session anyway. The consuming hooks
  * (useSubscription / useAllEvents) already prefix-filter client-side, so the
  * loopback just delivers everything and lets them decide.

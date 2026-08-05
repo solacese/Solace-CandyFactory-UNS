@@ -5,7 +5,7 @@
  * and each business system publishes at the level where it actually
  * operates — higher-level systems sit ABOVE the physical line:
  *
- *   haribot/
+ *   candyfactory/
  *   ├─ enterprise/
  *   │  ├─ orders/   (L5 — Commerce / marketplace, company-wide)
  *   │  └─ erp/      (L4 — ERP / business planning, company-wide)
@@ -17,7 +17,7 @@
  *         └─ hitl/   (human-in-the-loop approvals)
  */
 
-const ROOT = 'haribot';
+const ROOT = 'candyfactory';
 const ENTERPRISE = `${ROOT}/enterprise`;   // company-wide business systems
 const SITE = `${ROOT}/paris`;              // manufacturing site
 const LINE = `${SITE}/packing/line1`;      // area / production line
@@ -75,6 +75,27 @@ export const ARM = {
   HITL_APPROVED: t(LINE, 'hitl/approved'),
 };
 
+// ─── SAM — SOLACE AGENT MESH (enterprise-wide autonomous ops) ─
+// SAM observes the whole UNS and publishes its reasoning + corrective
+// actions. It sits at the enterprise level because it reasons across
+// every site/line, not one piece of equipment.
+export const SAM = {
+  INCIDENT_DETECTED: t(ENTERPRISE, 'sam/incident/detected'),   // an agent spotted a problem
+  AGENT_REASONING: t(ENTERPRISE, 'sam/agent/reasoning'),       // an agent's plan/thought
+  ACTION_TAKEN: t(ENTERPRISE, 'sam/action/taken'),             // corrective event published
+  INCIDENT_RESOLVED: t(ENTERPRISE, 'sam/incident/resolved'),   // problem closed out
+};
+
+// ─── CHAOS — injected disruptions (the problems SAM solves) ───
+// Chaos events are deliberately faulty/anomalous events published across
+// the UNS. They render RED in the feed and are what the SAM agents
+// subscribe to and resolve. The topic namespace mirrors where the fault
+// actually occurs, but every chaos event carries payload.chaos = true so
+// the UI can flag it regardless of layer.
+export const CHAOS = {
+  RAISED: t(ENTERPRISE, 'chaos/raised'),   // meta-event announcing an injected disruption
+};
+
 // ─── SYSTEM / DEMO ORCHESTRATION (not part of the visible UNS) ─
 // Used for leader-election so exactly one open kiosk drives the
 // simulated cascade even when multiple screens/phones are connected.
@@ -91,6 +112,8 @@ export const WILDCARDS = {
   SCADA: `${LINE}/scada/`,
   ARM: `${LINE}/arm/`,
   HITL: `${LINE}/hitl/`,
+  SAM: `${ENTERPRISE}/sam/`,
+  CHAOS: `${ENTERPRISE}/chaos/`,
 };
 
 // Location prefixes, exported for tree rendering / short-topic display.
@@ -109,4 +132,4 @@ export function shortTopic(fullTopic = '') {
 }
 
 // All topics flat (for reference)
-export const ALL_TOPICS = { ...MARKETPLACE, ...ERP, ...MES, ...SCADA, ...ARM };
+export const ALL_TOPICS = { ...MARKETPLACE, ...ERP, ...MES, ...SCADA, ...ARM, ...SAM, ...CHAOS };
