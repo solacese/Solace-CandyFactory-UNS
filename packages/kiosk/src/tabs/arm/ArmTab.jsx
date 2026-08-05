@@ -176,22 +176,34 @@ export default function ArmTab() {
 
 // ─── Sub-components ─────────────────────────────────────────────
 
+// Live SO-101 arm footage. Autoplays muted + loops so the booth screen always
+// shows motion; a small status overlay reflects the live arm/status event.
+const ARM_VIDEO_ID = 'kCP5U_MXqCE';
+
 function ArmFeedPlaceholder({ active, detail }) {
+  const src =
+    `https://www.youtube-nocookie.com/embed/${ARM_VIDEO_ID}` +
+    `?autoplay=1&mute=1&loop=1&playlist=${ARM_VIDEO_ID}` +
+    `&controls=0&modestbranding=1&playsinline=1&rel=0&showinfo=0`;
+
   return (
-    <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 bg-[#ecfdf5] px-6 text-center">
-      <span className="text-4xl opacity-80">🦾</span>
-      <div className="flex flex-col gap-1">
-        <span className="t-title text-[#052e22]/88">Live arm footage coming soon</span>
-        <span className="t-label font-mono uppercase tracking-wider text-[#052e22]/55">
-          {active ? (detail || 'Arm executing — telemetry live →') : 'Awaiting command'}
+    <div className="relative flex-1 min-h-0 bg-black overflow-hidden">
+      <iframe
+        className="absolute inset-0 w-full h-full"
+        src={src}
+        title="SO-101 robot arm — live footage"
+        frameBorder="0"
+        allow="autoplay; encrypted-media; picture-in-picture"
+        allowFullScreen
+      />
+      {/* Status overlay driven by the arm/status event stream */}
+      <div className="absolute bottom-0 inset-x-0 flex items-center gap-2 px-3 py-2
+        bg-gradient-to-t from-black/70 to-transparent pointer-events-none">
+        <span className={`w-1.5 h-1.5 pill ${active ? 'bg-[#00c895] animate-live' : 'bg-white/50'}`} />
+        <span className="t-label font-mono uppercase tracking-wider text-white/90 truncate">
+          {active ? (detail || 'Arm executing — telemetry live') : 'Arm idle — streaming pose'}
         </span>
       </div>
-      {active && (
-        <div className="flex items-center gap-2 t-label font-mono uppercase tracking-wider text-[#00c895]">
-          <span className="w-1.5 h-1.5 pill bg-[#00c895] animate-live" />
-          Streaming telemetry
-        </div>
-      )}
     </div>
   );
 }

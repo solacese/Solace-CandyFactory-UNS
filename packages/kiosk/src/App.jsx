@@ -22,8 +22,11 @@ const TABS = [
 export default function App() {
   const [activeTab, setActiveTab] = useState('marketplace');
   const connectionStatus = useSolaceConnection();
-  const allEvents = useAllEvents(500);
+  const allEvents = useAllEvents(1000);
   const [activeFilters, setActiveFilters] = useState(new Set(TOPIC_CATEGORIES));
+  // Broker-style topic subscription typed into the feed header (e.g. "scada/sensor",
+  // "arm/>", "paris/*/scada/*"). Empty = subscribe to everything.
+  const [topicFilter, setTopicFilter] = useState('');
 
   // Simulation engine + presenter controls
   const engineRef = useRef(null);
@@ -95,8 +98,15 @@ export default function App() {
     [allEvents, feedResetAt]
   );
 
-  // Filter events by active category filters
+  // Filter events by the typed topic subscription first, then category chips.
+  // When a topic filter is active it is authoritative — the operator asked to
+  // see exactly that subscription, so category chips and the chaos-always-on
+  // rule don't override it.
   const filteredEvents = useMemo(() => {
+    const hasTopic = topicFilter.trim().length > 0;
+    if (hasTopic) {
+      return visibleEvents.filter((evt) => topicMatches(evt.topic, topicFilter));
+    }
     if (activeFilters.size === TOPIC_CATEGORIES.length) return visibleEvents;
     return visibleEvents.filter((evt) => {
       const category = getCategoryFromTopic(evt.topic);
@@ -105,7 +115,7 @@ export default function App() {
       if (category === 'chaos' || evt.payload?.chaos === true) return true;
       return category && activeFilters.has(category);
     });
-  }, [visibleEvents, activeFilters]);
+  }, [visibleEvents, activeFilters, topicFilter]);
 
   // Track which categories have recent activity (last 5 seconds)
   const recentActivity = useMemo(() => {
@@ -120,9 +130,10 @@ export default function App() {
     return active;
   }, [visibleEvents]);
 
-  // Per-category live throughput: events in the last 60s + a short-window
-  // rate (events/sec over the last 10s). Recomputed on a 1s tick so the
-  // numbers keep advancing even when no new event arrives.
+  // Per-category live throughput in events/second, measured over a short 5s
+  // window so it stays responsive under a deluge. Recomputed on a 1s tick so
+  // the numbers keep advancing (and decay) even when no new event arrives.
+  const RATE_WINDOW_MS = 5000;
   const [statTick, setStatTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setStatTick((n) => n + 1), 1000);
@@ -130,30 +141,38 @@ export default function App() {
   }, []);
   const categoryStats = useMemo(() => {
     const now = Date.now();
-    const stats = {}; // cat -> { lastMin, rate }
+    const stats = {}; // cat -> { rate }
     const perCat = {};
     for (const evt of allEvents) {
       const cat = getCategoryFromTopic(evt.topic);
       if (!cat) continue;
       const age = now - (evt._receivedAt || 0);
-      if (age > 60000) continue;
-      (perCat[cat] ||= []).push(age);
+      if (age > RATE_WINDOW_MS) continue;
+      perCat[cat] = (perCat[cat] || 0) + 1;
     }
-    let totalMin = 0;
     let totalRate = 0;
-    for (const [cat, ages] of Object.entries(perCat)) {
-      const lastMin = ages.length;
-      const inWindow = ages.filter((a) => a <= 10000).length;
-      const rate = inWindow / 10;
-      stats[cat] = { lastMin, rate };
-      totalMin += lastMin;
+    for (const [cat, count] of Object.entries(perCat)) {
+      const rate = count / (RATE_WINDOW_MS / 1000);
+      stats[cat] = { rate };
       totalRate += rate;
     }
-    stats.__total = { lastMin: totalMin, rate: totalRate };
+    stats.__total = { rate: totalRate };
     return stats;
     // statTick drives the recompute cadence
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allEvents, statTick]);
+
+  // Rate of what's actually shown in the feed (respects the topic filter),
+  // so the header number matches the stream the operator subscribed to.
+  const feedRate = useMemo(() => {
+    const now = Date.now();
+    const count = filteredEvents.reduce(
+      (n, e) => (now - (e._receivedAt || 0) <= RATE_WINDOW_MS ? n + 1 : n),
+      0
+    );
+    return count / (RATE_WINDOW_MS / 1000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredEvents, statTick]);
 
   function toggleFilter(cat) {
     setActiveFilters((prev) => {
@@ -242,9 +261,12 @@ export default function App() {
             <div className="w-2 h-2 bg-[#00c895] animate-live" />
             <span className="t-data font-bold text-[#052e22]/88 tracking-widest font-mono">UNS EVENT FEED</span>
             <span className="t-label text-[#052e22]/55 font-mono ml-auto tabular-nums">
-              {(categoryStats.__total?.rate ?? 0).toFixed(1)}/s · {categoryStats.__total?.lastMin ?? 0}/min
+              {feedRate.toFixed(1)}/s
             </span>
           </div>
+
+          {/* Subscribe box — type a topic subscription (broker-style wildcards) */}
+          <SubscribeBar value={topicFilter} onChange={setTopicFilter} matchCount={filteredEvents.length} />
 
           {/* Topic Tree */}
           <TopicTree recentActivity={recentActivity} stats={categoryStats} />
@@ -289,6 +311,68 @@ export default function App() {
   );
 }
 
+/* ─── Subscribe Bar ───────────────────────────────────────────── */
+// Type a topic subscription like a real broker client. Supports * (one level)
+// and > (rest of topic). Quick-picks make the common ones one tap.
+const QUICK_SUBS = [
+  { label: 'all', value: '' },
+  { label: 'scada/sensor/*', value: 'scada/sensor/*' },
+  { label: 'arm/>', value: 'arm/>' },
+  { label: 'mes/>', value: 'mes/>' },
+  { label: 'erp/>', value: 'erp/>' },
+  { label: 'sam/>', value: 'sam/>' },
+];
+
+function SubscribeBar({ value, onChange, matchCount }) {
+  const active = value.trim().length > 0;
+  return (
+    <div className="px-4 py-2 border-b border-[#00c895]/28 flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <span className="t-label font-mono font-bold tracking-widest text-[#00c895]">SUB</span>
+        <div className="flex-1 flex items-center border transition-colors"
+          style={{ borderColor: active ? '#00c895' : 'rgba(6,120,90,0.28)' }}>
+          <input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="subscribe to a topic…  e.g. scada/sensor/*  ·  arm/>"
+            spellCheck={false}
+            className="flex-1 bg-white text-[#052e22] font-mono t-label px-2 py-1.5 placeholder-[#052e22]/40 focus:outline-none"
+          />
+          {active && (
+            <button
+              onClick={() => onChange('')}
+              title="Clear subscription"
+              className="px-2 text-[#052e22]/50 hover:text-[#ef4444] t-label font-mono"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        {active && (
+          <span className="t-label font-mono text-[#052e22]/55 tabular-nums shrink-0">{matchCount} match</span>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {QUICK_SUBS.map((q) => {
+          const isOn = value.trim() === q.value.trim();
+          return (
+            <button
+              key={q.label}
+              onClick={() => onChange(q.value)}
+              className="px-2 py-0.5 t-label font-mono border transition-colors"
+              style={isOn
+                ? { borderColor: '#00c895', color: '#052e22', background: 'rgba(0,200,149,0.08)' }
+                : { borderColor: 'rgba(6,120,90,0.24)', color: 'rgba(5,46,34,0.55)', background: 'transparent' }}
+            >
+              {q.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Topic Tree ──────────────────────────────────────────────── */
 function TopicTree({ recentActivity, stats = {} }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -301,7 +385,7 @@ function TopicTree({ recentActivity, stats = {} }) {
       >
         <span className="t-label text-[#052e22]/55 font-mono">{collapsed ? '▶' : '▼'}</span>
         <span className="t-label font-mono text-[#052e22]/72 tracking-wider">TOPIC HIERARCHY</span>
-        <span className="t-label font-mono text-[#052e22]/35 tracking-wider ml-auto pr-1">evt/s · last 60s</span>
+        <span className="t-label font-mono text-[#052e22]/35 tracking-wider ml-auto pr-1">evt/s</span>
       </button>
       {!collapsed && (
         <div className="px-4 pb-3 font-mono t-label leading-relaxed">
@@ -332,16 +416,14 @@ function TopicTree({ recentActivity, stats = {} }) {
 /* ─── Topic tree leaf (one UNS category under its location) ────── */
 function TreeLeaf({ cat, indent, active, stat }) {
   const rate = stat?.rate ?? 0;
-  const lastMin = stat?.lastMin ?? 0;
   const color = TOPIC_COLORS[cat] || '#00c895';
   return (
     <div className={`${indent} flex items-center gap-1`}>
       <span className="text-[#052e22]/45">├─</span>
       <span style={active ? { color } : undefined} className={active ? '' : 'text-[#052e22]/55'}>{cat}/</span>
       {active && <span className="w-1 h-1 animate-live" style={{ background: color }} />}
-      <span className="ml-auto flex items-center gap-2 tabular-nums">
+      <span className="ml-auto tabular-nums">
         <span style={rate > 0 ? { color } : undefined} className={rate > 0 ? '' : 'text-[#052e22]/30'}>{rate.toFixed(1)}/s</span>
-        <span className="text-[#052e22]/40 w-[52px] text-right">{lastMin}/min</span>
       </span>
     </div>
   );
@@ -459,6 +541,40 @@ function ConnectionBadge({ status }) {
       <span className="t-label text-[#052e22]/65 uppercase font-mono tracking-wider">{status}</span>
     </div>
   );
+}
+
+/* ─── Topic subscription matcher (broker-style wildcards) ─────── */
+// Supports Solace/MQTT-style wildcards against the FULL topic:
+//   *  matches exactly one level (segment between slashes)
+//   >  matches one or more trailing levels (only meaningful at the end)
+// A bare substring with no wildcard is treated as "match if the topic
+// contains it", so typing "scada/sensor" just works. Matching ignores the
+// leading root, so you can type either "candyfactory/paris/…/scada/…" or the
+// short "scada/…" form shown in the feed.
+function topicMatches(fullTopic, filter) {
+  const f = (filter || '').trim();
+  if (!f) return true;
+  const topic = fullTopic || '';
+  const short = stripPrefix(topic);
+
+  // No wildcard → forgiving substring match on either the full or short form.
+  if (!f.includes('*') && !f.includes('>')) {
+    return topic.includes(f) || short.includes(f);
+  }
+
+  const rx = wildcardToRegex(f);
+  return rx.test(topic) || rx.test(short);
+}
+
+function wildcardToRegex(filter) {
+  // Escape regex specials except our wildcards, then translate:
+  //   *  → one level  ([^/]+)
+  //   >  → rest of topic  (.+)
+  const esc = filter.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  const body = esc
+    .replace(/\*/g, '[^/]+')
+    .replace(/>/g, '.+');
+  return new RegExp(`(^|/)${body}$`);
 }
 
 /* ─── Helper ──────────────────────────────────────────────────── */

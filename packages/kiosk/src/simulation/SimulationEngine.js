@@ -80,6 +80,7 @@ export class SimulationEngine {
     this._inventory = {};
     for (const s of SWEETS) this._inventory[s.id] = INVENTORY_START;
     this._currentArmAngles = [0, -30, 45, 0, 0, 0]; // Default resting position
+    this._armBusy = false; // true while a pick motion is actively streaming telemetry
     this._processingOrders = new Map(); // correlationId -> startedAt (watchdog)
 
     // ─── Leader election: exactly one open kiosk drives the cascade ──
@@ -128,6 +129,7 @@ export class SimulationEngine {
     this._startConveyorStatus();
     this._startOEE();
     this._startInventory();
+    this._startArmHeartbeat();
     this._startAutoDemo();
     this._startWatchdog();
   }
@@ -542,7 +544,10 @@ export class SimulationEngine {
     // Target angles based on bin position
     const targets = this._getTargetAngles(binIndex);
     const startAngles = [...this._currentArmAngles];
-    const steps = 8; // 8 steps over ~1.6s = 200ms apart
+    const steps = 16; // 16 steps over ~1.6s = 100ms apart (dense telemetry)
+
+    // Motion owns the telemetry stream — pause the idle heartbeat.
+    this._armBusy = true;
 
     // Publish executing status
     publishMessage(
@@ -570,7 +575,9 @@ export class SimulationEngine {
             gripperState: t < 0.7 ? 'open' : 'closed',
           })
         );
-      }, i * 200);
+        // Last step done — hand the stream back to the idle heartbeat.
+        if (i === steps) this._armBusy = false;
+      }, i * 100);
     }
   }
 
@@ -585,34 +592,57 @@ export class SimulationEngine {
     return binTargets[binIndex] || binTargets[1];
   }
 
+  // ─── Background: Arm Idle Telemetry ──────────────────────────
+  // A real arm reports its pose continuously, not only while moving. Stream
+  // resting telemetry at ~3Hz (with micro-jitter) whenever no pick motion is
+  // active, so the ARM tab's joint bars are always event-driven and live.
+  _startArmHeartbeat() {
+    this._setInterval(() => {
+      if (!this._running || this._armBusy) return;
+      const angles = this._currentArmAngles.map(
+        (a) => +(a + (Math.random() - 0.5) * 0.2).toFixed(1)
+      );
+      publishMessage(
+        ARM.TELEMETRY,
+        envelope('sim-arm', null, {
+          jointAngles: angles,
+          gripperState: 'open',
+          idle: true,
+        })
+      );
+    }, 300);
+  }
+
   // ─── Background: Sensor Readings ─────────────────────────────
 
   _startBackgroundSensors() {
+    // Emit EVERY sensor on each tick at a brisk cadence so all cards update
+    // together and the UNS feed carries a steady stream of readings — the
+    // shop floor is always talking, order or no order.
     this._setInterval(() => {
       if (!this._running) return;
 
-      const sensor = SENSORS[this._sensorIndex];
-      this._sensorIndex = (this._sensorIndex + 1) % SENSORS.length;
+      for (const sensor of SENSORS) {
+        const value = +clamp(
+          randomNoise(sensor.base, sensor.noise),
+          sensor.min,
+          sensor.max
+        ).toFixed(2);
 
-      const value = +clamp(
-        randomNoise(sensor.base, sensor.noise),
-        sensor.min,
-        sensor.max
-      ).toFixed(2);
+        publishMessage(
+          SCADA.SENSOR_READING,
+          envelope('sim-scada', null, {
+            sensorId: sensor.id,
+            type: sensor.type,
+            value,
+            unit: sensor.unit,
+            location: sensor.location,
+          })
+        );
+      }
 
-      publishMessage(
-        SCADA.SENSOR_READING,
-        envelope('sim-scada', null, {
-          sensorId: sensor.id,
-          type: sensor.type,
-          value,
-          unit: sensor.unit,
-          location: sensor.location,
-        })
-      );
-
-      // Random chance of alarm (3%)
-      if (Math.random() < 0.03) {
+      // Occasional alarm (1.5% per tick now that ticks are more frequent).
+      if (Math.random() < 0.015) {
         const alarm = ALARM_TYPES[Math.floor(Math.random() * ALARM_TYPES.length)];
         publishMessage(
           SCADA.ALARM_RAISED,
@@ -621,11 +651,11 @@ export class SimulationEngine {
             message: alarm.message,
             severity: alarm.severity,
             sensor: alarm.sensor,
-            triggeredValue: value,
+            triggeredValue: +randomNoise(20, 5).toFixed(2),
           })
         );
       }
-    }, 2000);
+    }, 900);
   }
 
   // ─── Background: Conveyor Status ─────────────────────────────
@@ -650,7 +680,7 @@ export class SimulationEngine {
           status: 'running',
         })
       );
-    }, 3000);
+    }, 1500);
   }
 
   // ─── Background: OEE Updates ─────────────────────────────────
@@ -704,7 +734,7 @@ export class SimulationEngine {
           defectRate: +this._kpis.defectRate.toFixed(1),
         })
       );
-    }, 5000);
+    }, 2500);
   }
 
   // ─── Background: Inventory Levels ────────────────────────────
