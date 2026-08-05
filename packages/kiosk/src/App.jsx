@@ -198,8 +198,8 @@ export default function App() {
 
       {/* Body: Split Layout */}
       <div className="flex-1 flex min-h-0">
-        {/* LEFT: Tab Content (70%) */}
-        <div className="flex-[7] flex flex-col min-h-0 border-r border-[#00c895]/28">
+        {/* LEFT: Tab Content — flexes to fill remaining width */}
+        <div className="flex-1 min-w-0 flex flex-col min-h-0 border-r border-[#00c895]/28">
           {/* Tab Navigation */}
           <nav className="flex border-b border-[#00c895]/28 bg-[#ecfdf5]">
             {TABS.map((tab) => {
@@ -233,8 +233,8 @@ export default function App() {
           </main>
         </div>
 
-        {/* RIGHT: Event Feed Panel (30%) */}
-        <div className="flex-[3] flex flex-col min-h-0 bg-[#ecfdf5]">
+        {/* RIGHT: Event Feed Panel — fixed width */}
+        <div className="w-[420px] shrink-0 flex flex-col min-h-0 bg-[#ecfdf5]">
           {/* Panel Header */}
           <div className="px-4 py-2.5 border-b border-[#00c895]/28 flex items-center gap-2">
             <div className="w-2 h-2 bg-[#00c895] animate-live" />
