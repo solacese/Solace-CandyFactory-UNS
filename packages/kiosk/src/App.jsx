@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSolaceConnection, useAllEvents } from './broker/useSolace.js';
-import { TOPIC_CATEGORIES, TOPIC_COLORS } from './constants/theme.js';
-import { shortTopic as stripPrefix } from './constants/topics.js';
+import { TOPIC_COLORS } from './constants/theme.js';
+import { shortTopic as stripPrefix, WILDCARDS } from './constants/topics.js';
 import { SimulationEngine } from './simulation/SimulationEngine.js';
 import MarketplaceTab from './tabs/marketplace/MarketplaceTab.jsx';
 import ErpTab from './tabs/erp/ErpTab.jsx';
@@ -23,9 +23,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('marketplace');
   const connectionStatus = useSolaceConnection();
   const allEvents = useAllEvents(1000);
-  const [activeFilters, setActiveFilters] = useState(new Set(TOPIC_CATEGORIES));
-  // Broker-style topic subscription typed into the feed header (e.g. "scada/sensor",
-  // "arm/>", "paris/*/scada/*"). Empty = subscribe to everything.
+  // Full-path topic subscription set by typing or clicking the hierarchy
+  // (e.g. "candyfactory/paris/packing/line1/scada/"). Empty = everything.
   const [topicFilter, setTopicFilter] = useState('');
 
   // Simulation engine + presenter controls
@@ -98,24 +97,13 @@ export default function App() {
     [allEvents, feedResetAt]
   );
 
-  // Filter events by the typed topic subscription first, then category chips.
-  // When a topic filter is active it is authoritative — the operator asked to
-  // see exactly that subscription, so category chips and the chaos-always-on
-  // rule don't override it.
+  // The topic subscription is the only feed filter. Empty = subscribe to
+  // everything (candyfactory/>); otherwise show exactly what matches the
+  // typed/clicked full-path subscription, just like a real broker client.
   const filteredEvents = useMemo(() => {
-    const hasTopic = topicFilter.trim().length > 0;
-    if (hasTopic) {
-      return visibleEvents.filter((evt) => topicMatches(evt.topic, topicFilter));
-    }
-    if (activeFilters.size === TOPIC_CATEGORIES.length) return visibleEvents;
-    return visibleEvents.filter((evt) => {
-      const category = getCategoryFromTopic(evt.topic);
-      // Injected disruptions always stay visible so a fault is never hidden
-      // by an active filter — they're the whole point of the chaos demo.
-      if (category === 'chaos' || evt.payload?.chaos === true) return true;
-      return category && activeFilters.has(category);
-    });
-  }, [visibleEvents, activeFilters, topicFilter]);
+    if (!topicFilter.trim()) return visibleEvents;
+    return visibleEvents.filter((evt) => topicMatches(evt.topic, topicFilter));
+  }, [visibleEvents, topicFilter]);
 
   // Track which categories have recent activity (last 5 seconds)
   const recentActivity = useMemo(() => {
@@ -173,18 +161,6 @@ export default function App() {
     return count / (RATE_WINDOW_MS / 1000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredEvents, statTick]);
-
-  function toggleFilter(cat) {
-    setActiveFilters((prev) => {
-      const next = new Set(prev);
-      if (next.has(cat)) {
-        next.delete(cat);
-      } else {
-        next.add(cat);
-      }
-      return next;
-    });
-  }
 
   const ActiveComponent = TABS.find((t) => t.key === activeTab)?.component;
 
@@ -268,33 +244,16 @@ export default function App() {
             </span>
           </div>
 
-          {/* Subscribe box — type a topic subscription (broker-style wildcards) */}
+          {/* Topic subscription box — type a full-path subscription */}
           <SubscribeBar value={topicFilter} onChange={setTopicFilter} matchCount={filteredEvents.length} />
 
-          {/* Topic Tree */}
-          <TopicTree recentActivity={recentActivity} stats={categoryStats} />
-
-          {/* Filter Chips */}
-          <div className="px-4 py-2.5 border-b border-[#00c895]/28 flex flex-wrap gap-1.5">
-            {TOPIC_CATEGORIES.map((cat) => {
-              const isActive = activeFilters.has(cat);
-              const hasActivity = recentActivity.has(cat);
-              const color = TOPIC_COLORS[cat] || '#00c895';
-              return (
-                <button
-                  key={cat}
-                  onClick={() => toggleFilter(cat)}
-                  className="px-2.5 py-1 t-label font-mono font-bold uppercase tracking-wider border transition-colors"
-                  style={isActive
-                    ? { borderColor: `${color}7a`, color: '#04121f', background: `${color}0d` }
-                    : { borderColor: 'rgba(6,120,90,0.34)', color: 'rgba(4,18,31,0.66)', background: 'transparent' }}
-                >
-                  {hasActivity && isActive && <span className="inline-block w-1.5 h-1.5 mr-1.5 align-middle" style={{ background: color }} />}
-                  {cat}
-                </button>
-              );
-            })}
-          </div>
+          {/* Clickable topic hierarchy — pick a node to subscribe to its full path */}
+          <TopicTree
+            recentActivity={recentActivity}
+            stats={categoryStats}
+            selected={topicFilter}
+            onSelect={setTopicFilter}
+          />
 
           {/* Event List */}
           <div className="flex-1 overflow-y-auto px-4 py-1">
@@ -314,70 +273,78 @@ export default function App() {
   );
 }
 
-/* ─── Subscribe Bar ───────────────────────────────────────────── */
-// Type a topic subscription like a real broker client. Supports * (one level)
-// and > (rest of topic). Quick-picks make the common ones one tap.
-const QUICK_SUBS = [
-  { label: 'all', value: '' },
-  { label: 'scada/sensor/*', value: 'scada/sensor/*' },
-  { label: 'arm/>', value: 'arm/>' },
-  { label: 'mes/>', value: 'mes/>' },
-  { label: 'erp/>', value: 'erp/>' },
-  { label: 'sam/>', value: 'sam/>' },
-];
-
+/* ─── Topic subscription bar ──────────────────────────────────── */
+// Full-path topic subscription, like a real broker client. Type a path or
+// click a node in the hierarchy below. Supports * (one level) and > (rest).
 function SubscribeBar({ value, onChange, matchCount }) {
   const active = value.trim().length > 0;
   return (
-    <div className="px-4 py-2 border-b border-[#00c895]/28 flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <span className="t-label font-mono font-bold tracking-widest text-[#00c895]">SUB</span>
-        <div className="flex-1 flex items-center border transition-colors"
-          style={{ borderColor: active ? '#00c895' : 'rgba(6,120,90,0.28)' }}>
-          <input
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="subscribe to a topic…  e.g. scada/sensor/*  ·  arm/>"
-            spellCheck={false}
-            className="flex-1 bg-white text-[#04121f] font-mono t-label px-2 py-1.5 placeholder-[#04121f]/56 focus:outline-none"
-          />
-          {active && (
-            <button
-              onClick={() => onChange('')}
-              title="Clear subscription"
-              className="px-2 text-[#04121f]/64 hover:text-[#ef4444] t-label font-mono"
-            >
-              ✕
-            </button>
-          )}
-        </div>
+    <div className="px-4 py-2 border-b border-[#00c895]/28 flex items-center gap-2">
+      <span className="t-label font-mono font-bold tracking-widest text-[#00c895]">TOPIC</span>
+      <div className="flex-1 flex items-center border transition-colors"
+        style={{ borderColor: active ? '#00c895' : 'rgba(6,120,90,0.28)' }}>
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="candyfactory/>  —  click a topic below or type a path"
+          spellCheck={false}
+          className="flex-1 bg-white text-[#04121f] font-mono t-label px-2 py-1.5 placeholder-[#04121f]/50 focus:outline-none"
+        />
         {active && (
-          <span className="t-label font-mono text-[#04121f]/68 tabular-nums shrink-0">{matchCount} match</span>
+          <button
+            onClick={() => onChange('')}
+            title="Clear subscription"
+            className="px-2 text-[#04121f]/64 hover:text-[#ef4444] t-label font-mono"
+          >
+            ✕
+          </button>
         )}
       </div>
-      <div className="flex flex-wrap gap-1.5">
-        {QUICK_SUBS.map((q) => {
-          const isOn = value.trim() === q.value.trim();
-          return (
-            <button
-              key={q.label}
-              onClick={() => onChange(q.value)}
-              className="px-2 py-0.5 t-label font-mono border transition-colors"
-              style={isOn
-                ? { borderColor: '#00c895', color: '#04121f', background: 'rgba(0,200,149,0.08)' }
-                : { borderColor: 'rgba(6,120,90,0.3)', color: 'rgba(4,18,31,0.68)', background: 'transparent' }}
-            >
-              {q.label}
-            </button>
-          );
-        })}
-      </div>
+      {active && (
+        <span className="t-label font-mono text-[#04121f]/68 tabular-nums shrink-0">{matchCount} match</span>
+      )}
     </div>
   );
 }
 
-/* ─── Topic Tree ──────────────────────────────────────────────── */
-function TopicTree({ recentActivity, stats = {} }) {
+/* ─── Topic hierarchy ─────────────────────────────────────────── */
+// Data-driven tree. Every node carries its FULL topic path and is clickable
+// to set the subscription. Branches use a "/>" subscription (whole subtree);
+// leaves subscribe to their own path. Cleaner than ASCII art: real indent,
+// a thin guide rail, and a small colored square on active leaves.
+//
+// Depth 0 = root, 1 = location branch, 2 = system leaf. `cat` links a leaf to
+// its live rate + color from the event stats.
+const TOPIC_HIERARCHY = {
+  label: 'candyfactory',
+  path: WILDCARDS.ALL, // candyfactory/>
+  children: [
+    {
+      label: 'enterprise', path: `${'candyfactory/enterprise'}/>`,
+      children: [
+        { label: 'orders', cat: 'orders', path: WILDCARDS.ORDERS },
+        { label: 'erp', cat: 'erp', path: WILDCARDS.ERP },
+        { label: 'sam', cat: 'sam', path: WILDCARDS.SAM },
+      ],
+    },
+    {
+      label: 'paris', path: `${'candyfactory/paris'}/>`,
+      children: [
+        { label: 'mes', cat: 'mes', path: WILDCARDS.MES },
+        {
+          label: 'packing/line1', path: `${'candyfactory/paris/packing/line1'}/>`,
+          children: [
+            { label: 'scada', cat: 'scada', path: WILDCARDS.SCADA },
+            { label: 'arm', cat: 'arm', path: WILDCARDS.ARM },
+            { label: 'hitl', cat: 'hitl', path: WILDCARDS.HITL },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+function TopicTree({ recentActivity, stats = {}, selected, onSelect }) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -391,24 +358,86 @@ function TopicTree({ recentActivity, stats = {} }) {
         <span className="t-label font-mono text-[#04121f]/52 tracking-wider ml-auto pr-1">evt/s</span>
       </button>
       {!collapsed && (
-        <div className="px-4 pb-3 font-mono t-label leading-relaxed">
-          <div className="text-[#04121f]/60">candyfactory/</div>
+        <div className="px-3 pb-3 font-mono t-label">
+          <TreeNode
+            node={TOPIC_HIERARCHY}
+            depth={0}
+            recentActivity={recentActivity}
+            stats={stats}
+            selected={selected}
+            onSelect={onSelect}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
-          {/* Enterprise — company-wide business systems (L5, L4) + SAM */}
-          <div className="text-[#04121f]/60 pl-2">├─ enterprise/</div>
-          {['orders', 'erp', 'sam'].map((cat) => (
-            <TreeLeaf key={cat} cat={cat} indent="pl-5" active={recentActivity.has(cat)} stat={stats[cat]} />
-          ))}
+function TreeNode({ node, depth, recentActivity, stats, selected, onSelect }) {
+  const color = node.cat ? (TOPIC_COLORS[node.cat] || '#00c895') : '#00c895';
+  const active = node.cat ? recentActivity.has(node.cat) : false;
+  const rate = node.cat ? (stats[node.cat]?.rate ?? 0) : null;
+  const isSelected = selected && selected.trim() === node.path;
+  const isBranch = !!node.children?.length;
 
-          {/* Site — Paris manufacturing site */}
-          <div className="text-[#04121f]/60 pl-2">└─ paris/</div>
-          {/* MES lives at the site level (L3) */}
-          <TreeLeaf cat="mes" indent="pl-5" active={recentActivity.has('mes')} stat={stats.mes} />
+  return (
+    <div>
+      <button
+        onClick={() => onSelect(isSelected ? '' : node.path)}
+        title={node.path}
+        className="group w-full flex items-center gap-2 py-[3px] px-1.5 text-left transition-colors hover:bg-[#00c895]/[0.06]"
+        style={{
+          paddingLeft: `${depth * 14 + 6}px`,
+          background: isSelected ? 'rgba(0,200,149,0.10)' : undefined,
+          boxShadow: isSelected ? 'inset 2px 0 0 #00c895' : undefined,
+        }}
+      >
+        {/* node label */}
+        <span
+          className={isBranch ? 'font-semibold' : ''}
+          style={{
+            color: isSelected
+              ? '#04121f'
+              : isBranch
+                ? 'rgba(4,18,31,0.7)'
+                : active
+                  ? color
+                  : 'rgba(4,18,31,0.82)',
+          }}
+        >
+          {node.label}<span className="text-[#04121f]/38">/</span>
+        </span>
 
-          {/* Area / production line — shop-floor equipment (L2, L0-1) */}
-          <div className="text-[#04121f]/60 pl-5">└─ packing/line1/</div>
-          {['scada', 'arm', 'hitl'].map((cat) => (
-            <TreeLeaf key={cat} cat={cat} indent="pl-8" active={recentActivity.has(cat)} stat={stats[cat]} />
+        {/* live dot on active leaves */}
+        {active && <span className="w-1.5 h-1.5" style={{ background: color }} />}
+
+        {/* leaf rate on the right */}
+        {rate != null && (
+          <span className="ml-auto tabular-nums pr-1">
+            <span style={rate > 0 ? { color } : undefined} className={rate > 0 ? '' : 'text-[#04121f]/44'}>
+              {rate.toFixed(1)}/s
+            </span>
+          </span>
+        )}
+      </button>
+
+      {isBranch && (
+        <div className="relative">
+          {/* guide rail */}
+          <span
+            className="absolute top-0 bottom-0 w-px bg-[#00c895]/18"
+            style={{ left: `${depth * 14 + 12}px` }}
+          />
+          {node.children.map((child) => (
+            <TreeNode
+              key={child.path}
+              node={child}
+              depth={depth + 1}
+              recentActivity={recentActivity}
+              stats={stats}
+              selected={selected}
+              onSelect={onSelect}
+            />
           ))}
         </div>
       )}
@@ -416,25 +445,9 @@ function TopicTree({ recentActivity, stats = {} }) {
   );
 }
 
-/* ─── Topic tree leaf (one UNS category under its location) ────── */
-function TreeLeaf({ cat, indent, active, stat }) {
-  const rate = stat?.rate ?? 0;
-  const color = TOPIC_COLORS[cat] || '#00c895';
-  return (
-    <div className={`${indent} flex items-center gap-1`}>
-      <span className="text-[#04121f]/60">├─</span>
-      <span style={active ? { color } : undefined} className={active ? '' : 'text-[#04121f]/68'}>{cat}/</span>
-      {active && <span className="w-1 h-1 animate-live" style={{ background: color }} />}
-      <span className="ml-auto tabular-nums">
-        <span style={rate > 0 ? { color } : undefined} className={rate > 0 ? '' : 'text-[#04121f]/48'}>{rate.toFixed(1)}/s</span>
-      </span>
-    </div>
-  );
-}
-
 /* ─── Event Row ───────────────────────────────────────────────── */
 function EventRow({ event }) {
-  const shortTopic = stripPrefix(event.topic || '');
+  const fullTopic = event.topic || '';
   const time = event._receivedAt
     ? new Date(event._receivedAt).toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : '';
@@ -473,8 +486,10 @@ function EventRow({ event }) {
       <span
         className="truncate flex-1"
         style={isChaos ? { color: '#ef4444', fontWeight: 500 } : catColor ? { color: catColor } : { color: 'rgba(4,18,31,0.88)' }}
+        title={fullTopic}
+        dir="rtl"
       >
-        {shortTopic}
+        <bdi>{fullTopic}</bdi>
       </span>
       <span className={`truncate max-w-[90px] ${isChaos ? 'text-[#ef4444]/80' : 'text-[#04121f]/68'}`}>{preview}</span>
     </div>
