@@ -6,6 +6,8 @@ import threading
 import time
 import uuid
 
+import config
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,7 +57,8 @@ class TelemetryPublisher:
             logger.debug(f"[telemetry] Could not read observation: {e}")
             return
 
-        # Extract joint positions (skip camera data)
+        # Extract joint positions (skip camera data). Keep the canonical ISA
+        # 6-slot order for the dashboard's jointAngles array.
         joint_angles = []
         for key in [
             "shoulder_pan.pos",
@@ -67,17 +70,45 @@ class TelemetryPublisher:
         ]:
             joint_angles.append(obs.get(key, 0.0))
 
-        gripper_value = joint_angles[5]
-        gripper_state = "open" if gripper_value > 50 else "closed"
+        # Gripper state must come from the motor that PHYSICALLY actuates the
+        # gripper (post-swap that's config.ARM_GRIPPER_MOTOR, e.g. wrist_roll),
+        # not the logical "gripper" motor which now sits frozen in the wrist.
+        gripper_value = obs.get(f"{config.ARM_GRIPPER_MOTOR}.pos", joint_angles[5])
+        midpoint = (config.GRIPPER_OPEN + config.GRIPPER_CLOSED) / 2.0
+        gripper_state = "open" if gripper_value > midpoint else "closed"
 
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
+
+        # Combined telemetry — the whole pose in one event (drives the 3D arm
+        # and the joint-bar panel in the kiosk).
         event = {
             "eventId": str(uuid.uuid4()),
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+            "timestamp": timestamp,
             "source": "arm-bridge",
             "payload": {
                 "jointAngles": joint_angles,
                 "gripperState": gripper_state,
             },
         }
-
         self.mqtt_client.publish(self.topic, json.dumps(event))
+
+        # Per-motor telemetry — one event per SO-101 joint on its own topic
+        # (candyfactory/.../arm/<motor>), mirroring the sim so each servo is
+        # independently subscribable on the UNS. source=arm-bridge lets the
+        # kiosk tell real telemetry apart from the browser simulation.
+        for idx, motor in enumerate(config.ARM_MOTORS):
+            motor_topic = config.TOPIC_ARM_MOTOR.get(motor)
+            if not motor_topic:
+                continue
+            motor_event = {
+                "eventId": str(uuid.uuid4()),
+                "timestamp": timestamp,
+                "source": "arm-bridge",
+                "payload": {
+                    "motor": motor,
+                    "jointIndex": idx,
+                    "angleDeg": joint_angles[idx],
+                    "unit": "deg",
+                },
+            }
+            self.mqtt_client.publish(motor_topic, json.dumps(motor_event))

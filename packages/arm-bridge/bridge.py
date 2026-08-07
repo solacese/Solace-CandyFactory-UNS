@@ -5,9 +5,10 @@ LeRobot ↔ Solace Arm Bridge
 Connects to a real SO-101 follower arm via LeRobot and bridges
 commands/telemetry through Solace PubSub+ (MQTT).
 
-Subscribes to: haribot/{site}/{area}/{line}/arm/command
-Publishes to:  haribot/{site}/{area}/{line}/arm/telemetry (10Hz)
-               haribot/{site}/{area}/{line}/arm/status (on change)
+Subscribes to: candyfactory/{site}/{area}/{line}/arm/command
+Publishes to:  candyfactory/{site}/{area}/{line}/arm/telemetry (10Hz)
+               candyfactory/{site}/{area}/{line}/arm/<motor>   (per-joint, 10Hz)
+               candyfactory/{site}/{area}/{line}/arm/status    (on change)
 """
 
 import json
@@ -87,18 +88,28 @@ def on_message(client, userdata, msg):
 
 
 def connect_robot():
-    """Connect to the SO-101 follower arm via LeRobot."""
-    from lerobot.robots.so_follower import SOFollower
-    from lerobot.robots.so_follower.config_so_follower import SOFollowerRobotConfig
+    """Connect to the SO-101 follower arm via LeRobot.
 
-    robot_config = SOFollowerRobotConfig(
+    Uses the current LeRobot API (SO101Follower / SO101FollowerConfig from
+    lerobot.robots.so_follower). `use_degrees` is passed only if this build of
+    LeRobot's config accepts it, so the bridge works across versions.
+    """
+    from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
+
+    cfg_kwargs = dict(
         port=config.ARM_PORT,
         id=config.ARM_ID,
-        use_degrees=config.USE_DEGREES,
         cameras={},  # No cameras for bridge mode
     )
+    # Older/newer configs differ on whether they expose `use_degrees`.
+    try:
+        if "use_degrees" in SO101FollowerConfig.__dataclass_fields__:
+            cfg_kwargs["use_degrees"] = config.USE_DEGREES
+    except Exception:
+        pass
 
-    arm = SOFollower(robot_config)
+    robot_config = SO101FollowerConfig(**cfg_kwargs)
+    arm = SO101Follower(robot_config)
     arm.connect()
     logger.info(f"[robot] SO-101 connected on {config.ARM_PORT}")
     return arm
@@ -141,7 +152,7 @@ def main():
         """
     ╔══════════════════════════════════════════════════╗
     ║  LeRobot ↔ Solace Arm Bridge                    ║
-    ║  SO-101 Follower → MQTT → Haribot UNS          ║
+    ║  SO-101 Follower → MQTT → CandyFactory UNS     ║
     ╚══════════════════════════════════════════════════╝
     """
     )

@@ -81,6 +81,16 @@ export class SimulationEngine {
     for (const s of SWEETS) this._inventory[s.id] = INVENTORY_START;
     this._currentArmAngles = [0, -30, 45, 0, 0, 0]; // Default resting position
     this._armBusy = false; // true while a pick motion is actively streaming telemetry
+
+    // ─── Real-arm takeover ───────────────────────────────────────
+    // When the physical SO-101 is connected, the arm-bridge publishes real
+    // telemetry (source: "arm-bridge"). The moment we see it, the simulated
+    // arm yields: the idle heartbeat and the pick-motion telemetry stop so the
+    // two sources never fight over the joint state. Everything else (orders,
+    // MES, SCADA) keeps simulating. Yield expires after a few seconds of
+    // silence so unplugging the arm restores the simulated motion.
+    this._realArmLastSeen = 0;
+    this._realArmTimeoutMs = 4000;
     this._processingOrders = new Map(); // correlationId -> startedAt (watchdog)
 
     // ─── Leader election: exactly one open kiosk drives the cascade ──
@@ -242,6 +252,13 @@ export class SimulationEngine {
 
   _handleEvent(topic, data) {
     if (!this._running) return;
+
+    // Real physical arm detection (any instance, before the orchestrator gate).
+    // The arm-bridge stamps every telemetry event with source:"arm-bridge".
+    // Seeing one means the SO-101 is live — the simulated arm must yield.
+    if (data?.source === 'arm-bridge' && topic.includes('/arm/')) {
+      this._realArmLastSeen = Date.now();
+    }
 
     // Orchestration heartbeats are handled regardless of role.
     if (topic === SYSTEM.SIM_HEARTBEAT) {
@@ -540,7 +557,15 @@ export class SimulationEngine {
 
   // ─── Arm Motion Simulation ───────────────────────────────────
 
+  /** True while real SO-101 telemetry is arriving — the sim arm yields. */
+  _realArmActive() {
+    return Date.now() - this._realArmLastSeen < this._realArmTimeoutMs;
+  }
+
   _simulateArmMotion(correlationId, binIndex, meta = {}) {
+    // Physical arm is live — don't stream simulated joint telemetry on top of
+    // it. The rest of the pick chain (status, MES, order flow) still runs.
+    if (this._realArmActive()) return;
     // Target angles based on bin position
     const targets = this._getTargetAngles(binIndex);
     const startAngles = [...this._currentArmAngles];
@@ -623,6 +648,8 @@ export class SimulationEngine {
   _startArmHeartbeat() {
     this._setInterval(() => {
       if (!this._running || this._armBusy) return;
+      // Physical arm connected → let its telemetry own the joint state.
+      if (this._realArmActive()) return;
       const angles = this._currentArmAngles.map(
         (a) => +(a + (Math.random() - 0.5) * 0.2).toFixed(1)
       );

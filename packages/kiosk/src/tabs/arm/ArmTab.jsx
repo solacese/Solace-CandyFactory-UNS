@@ -2,13 +2,15 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSubscription, usePublish } from '../../broker/useSolace.js';
 import { ARM, WILDCARDS, shortTopic as stripPrefix } from '../../constants/topics.js';
 import { SWEETS } from '../../constants/demo-data.js';
-// NOTE: 3D arm visualization (Arm3D) temporarily removed — real footage of
-// the physical arm will be recorded and dropped in later.
+import Arm3D from './Arm3D.jsx';
 
 // ─── Constants ──────────────────────────────────────────────────
 const JOINT_NAMES = ['Base', 'Shoulder', 'Elbow', 'Wrist-P', 'Wrist-R', 'Gripper'];
 const DEFAULT_ANGLES = [0, -30, 45, 0, 0, 0];
 const MAX_LOG_ENTRIES = 40;
+// If no real telemetry (source:"arm-bridge") arrives within this window, the
+// view falls back to labelling itself SIM. Matches the engine's yield timeout.
+const REAL_ARM_TIMEOUT_MS = 4000;
 
 // ─── Main Component ─────────────────────────────────────────────
 export default function ArmTab() {
@@ -22,7 +24,18 @@ export default function ArmTab() {
   const [hitlRequest, setHitlRequest] = useState(null);
   const [commandLog, setCommandLog] = useState([]);
   const [currentUnit, setCurrentUnit] = useState(null); // { itemId, unitIndex, totalUnits, sweetType }
+  const [lastRealArmAt, setLastRealArmAt] = useState(0); // ts of last source:"arm-bridge" event
+  const [now, setNow] = useState(Date.now());
   const logRef = useRef(null);
+
+  // Tick so the LIVE→SIM badge flips back on its own when the arm goes quiet.
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Live when real hardware telemetry has arrived within the timeout window.
+  const isLiveArm = now - lastRealArmAt < REAL_ARM_TIMEOUT_MS;
 
   // Process arm events
   useEffect(() => {
@@ -30,6 +43,9 @@ export default function ArmTab() {
     const latest = armEvents[0];
     const topic = latest.topic;
     const p = latest.payload || {};
+
+    // Real SO-101 telemetry is stamped source:"arm-bridge" — mark the view live.
+    if (latest.source === 'arm-bridge') setLastRealArmAt(Date.now());
 
     if (topic === ARM.TELEMETRY) {
       if (p.jointAngles) setJointAngles(p.jointAngles);
@@ -49,7 +65,10 @@ export default function ArmTab() {
     }
 
     addLogEntry(topic, latest);
-  }, [armEvents.length]);
+    // Depend on the newest event's receive-time, not array length: the buffer
+    // saturates at maxEvents and its .length stops changing, which would freeze
+    // this effect and drop every subsequent event (incl. live arm-bridge data).
+  }, [armEvents[0]?._receivedAt]);
 
   // Process HITL events
   useEffect(() => {
@@ -58,7 +77,7 @@ export default function ArmTab() {
     if (latest.topic === ARM.HITL_REQUIRED) setHitlRequest(latest);
     else if (latest.topic === ARM.HITL_APPROVED) setHitlRequest(null);
     addLogEntry(latest.topic, latest);
-  }, [hitlEvents.length]);
+  }, [hitlEvents[0]?._receivedAt]);
 
   const addLogEntry = useCallback((topic, data) => {
     setCommandLog((prev) => {
@@ -117,14 +136,29 @@ export default function ArmTab() {
         {/* Left: Robot Arm feed (live video coming — visualization removed for now) */}
         <div className="flex-1 rounded-card border border-[#00c895]/34 bg-white overflow-hidden flex flex-col shadow-sm">
           <div className="flex items-center justify-between px-3 pt-2">
-            <span className="t-label uppercase text-[#04121f]/80 tracking-wider">Robot Arm</span>
+            <div className="flex items-center gap-2">
+              <span className="t-label uppercase text-[#04121f]/80 tracking-wider">Robot Arm</span>
+              {/* LIVE = physical SO-101 telemetry; SIM = browser simulation. */}
+              <span className={`t-label font-mono uppercase px-1.5 py-0.5 pill border ${
+                isLiveArm
+                  ? 'border-[#e0245e] text-[#e0245e] bg-[#e0245e]/8'
+                  : 'border-[#04121f]/45 text-[#04121f]/64'
+              }`}>
+                {isLiveArm ? '● live so-101' : 'sim'}
+              </span>
+            </div>
             <span className={`t-label font-mono uppercase px-2 py-0.5 pill border ${
               isActive ? 'border-[#00c895] text-[#00c895] bg-[#00c895]/8' : 'border-[#04121f]/60 text-[#04121f]/76'
             }`}>
               {armStatus.status || 'idle'}
             </span>
           </div>
-          <ArmFeedPlaceholder active={isActive} detail={armStatus.detail} />
+          <ArmLiveView
+            angles={jointAngles}
+            gripperState={gripperState}
+            active={isActive}
+            detail={armStatus.detail}
+          />
           {/* Per-unit transaction banner */}
           <UnitBanner unit={currentUnit} status={armStatus.status} />
         </div>
@@ -176,26 +210,30 @@ export default function ArmTab() {
 
 // ─── Sub-components ─────────────────────────────────────────────
 
-// Live SO-101 arm footage. Autoplays muted + loops so the booth screen always
-// shows motion; a small status overlay reflects the live arm/status event.
-const ARM_VIDEO_ID = 'kCP5U_MXqCE';
+// Live 3D SO-101 — a WebGL articulated arm driven directly by the joint-angle
+// telemetry stream (sim OR the physical arm-bridge; same jointAngles shape).
+// A small status overlay reflects the live arm/status event. If WebGL is
+// unavailable, an error boundary falls back to the joint-angle readout.
+class WebGLBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (this.state.failed) return this.props.fallback;
+    return this.props.children;
+  }
+}
 
-function ArmFeedPlaceholder({ active, detail }) {
-  const src =
-    `https://www.youtube-nocookie.com/embed/${ARM_VIDEO_ID}` +
-    `?autoplay=1&mute=1&loop=1&playlist=${ARM_VIDEO_ID}` +
-    `&controls=0&modestbranding=1&playsinline=1&rel=0&showinfo=0`;
-
+function ArmLiveView({ angles, gripperState, active, detail }) {
   return (
-    <div className="relative flex-1 min-h-0 bg-black overflow-hidden">
-      <iframe
-        className="absolute inset-0 w-full h-full"
-        src={src}
-        title="SO-101 robot arm — live footage"
-        frameBorder="0"
-        allow="autoplay; encrypted-media; picture-in-picture"
-        allowFullScreen
-      />
+    <div className="relative flex-1 min-h-0 bg-[#04121f] overflow-hidden">
+      <WebGLBoundary fallback={<ArmAngleFallback angles={angles} />}>
+        <Arm3D angles={angles} gripperState={gripperState} active={active} />
+      </WebGLBoundary>
       {/* Status overlay driven by the arm/status event stream */}
       <div className="absolute bottom-0 inset-x-0 flex items-center gap-2 px-3 py-2
         bg-gradient-to-t from-black/70 to-transparent pointer-events-none">
@@ -204,6 +242,21 @@ function ArmFeedPlaceholder({ active, detail }) {
           {active ? (detail || 'Arm executing — telemetry live') : 'Arm idle — streaming pose'}
         </span>
       </div>
+    </div>
+  );
+}
+
+// Fallback when WebGL can't run: a plain numeric pose readout so the live
+// telemetry is still visible.
+function ArmAngleFallback({ angles = [] }) {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-white/85 font-mono">
+      <span className="t-label uppercase tracking-wider text-white/60 mb-1">Pose (deg)</span>
+      {JOINT_NAMES.map((name, i) => (
+        <span key={name} className="t-data">
+          {name}: {(angles[i] ?? 0).toFixed(1)}°
+        </span>
+      ))}
     </div>
   );
 }

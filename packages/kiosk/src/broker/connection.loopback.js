@@ -88,3 +88,11 @@ export function publishMessage(topicName, payload) {
 export function disconnectBroker() {
   setStatus('disconnected');
 }
+
+// Dev-only escape hatch: lets a manual/automated test inject a message onto the
+// loopback bus (e.g. a synthetic `source: "arm-bridge"` burst to exercise the
+// live-arm switch and simulation auto-yield). Guarded by import.meta.env.DEV so
+// it exists only under `vite dev` — production/Pages builds tree-shake it out.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  window.__kioskLoopbackPublish = publishMessage;
+}

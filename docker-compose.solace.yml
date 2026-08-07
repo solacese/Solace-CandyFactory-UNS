@@ -1,0 +1,52 @@
+# Local Solace PubSub+ broker for the CandyFactory UNS demo.
+#
+# One broker, two client protocols on the same topic space:
+#   - Kiosk dashboard  → Web Messaging (SMF-over-WebSocket) on :8008
+#   - Arm bridge (Py)  → MQTT on :1883
+#
+# Boot it, then create the demo client user (SEMP), see README below.
+#
+#   docker compose -f docker-compose.solace.yml up -d
+#   # wait ~30s for the broker to come up, then:
+#   curl -u admin:admin -X POST \
+#     http://localhost:8080/SEMP/v2/config/msgVpns/default/clientUsernames \
+#     -H "Content-Type: application/json" \
+#     -d '{"clientUsername":"haribot","password":"haribot","enabled":true}'
+#
+# The default VPN ships with MQTT + Web-Messaging listeners already enabled,
+# so no extra SEMP config is needed beyond the client user above.
+#
+# Only :8080 (SEMP), :8008 (kiosk WS) and :1883 (bridge MQTT) are required for
+# the demo. The native SMF/AMQP/MQTT-WS ports are optional and host-overridable
+# so the stack still boots if something already holds one of them, e.g.:
+#   SOLACE_SMF_PORT=55556 docker compose -f docker-compose.solace.yml up -d
+
+services:
+  solace:
+    image: solace/solace-pubsub-standard:latest
+    container_name: candyfactory-solace
+    hostname: solace
+    restart: unless-stopped
+    shm_size: 1g
+    ulimits:
+      core: -1
+      nofile:
+        soft: 2448
+        hard: 6592
+    ports:
+      - "8080:8080"     # PubSub+ Manager UI (admin/admin)
+      - "9080:9080"     # SEMP / management REST
+      - "${SOLACE_SMF_PORT:-55555}:55555"   # SMF (native messaging, optional)
+      - "8008:8008"     # SMF over WebSocket  ← kiosk dashboard connects here
+      - "1883:1883"     # MQTT               ← arm bridge connects here
+      - "${SOLACE_AMQP_PORT:-5672}:5672"     # AMQP (optional)
+      - "${SOLACE_MQTTWS_PORT:-8000}:8000"   # MQTT over WebSocket (optional)
+    environment:
+      - username_admin_globalaccesslevel=admin
+      - username_admin_password=admin
+      - system_scaling_maxconnectioncount=100
+    volumes:
+      - solace-data:/var/lib/solace
+
+volumes:
+  solace-data:
