@@ -8,7 +8,7 @@
  * 4. Auto-demo mode: place an order automatically if idle 30s
  */
 import { onMessage, publishMessage } from '../broker/connection.js';
-import { MARKETPLACE, ERP, MES, SCADA, ARM, SAM, CHAOS, SYSTEM } from '../constants/topics.js';
+import { MARKETPLACE, ERP, MES, SCADA, ARM, ARM_MOTORS, SAM, CHAOS, SYSTEM } from '../constants/topics.js';
 import { CHAOS_LIBRARY, SAM_AGENTS, agentFor, randomChaos } from '../constants/chaos.js';
 import {
   SENSORS,
@@ -575,10 +575,34 @@ export class SimulationEngine {
             gripperState: t < 0.7 ? 'open' : 'closed',
           })
         );
+        this._publishMotorTelemetry(angles, correlationId, {
+          ...meta,
+          moving: true,
+        });
         // Last step done — hand the stream back to the idle heartbeat.
         if (i === steps) this._armBusy = false;
       }, i * 100);
     }
+  }
+
+  // Publish one telemetry event per SO-101 motor on
+  // candyfactory/paris/packing/line1/arm/<motor>. Each carries that single
+  // servo's angle so every motor is independently observable on the UNS.
+  _publishMotorTelemetry(angles, correlationId, meta = {}) {
+    ARM_MOTORS.forEach((motor, idx) => {
+      const angle = angles[idx];
+      if (angle === undefined) return;
+      publishMessage(
+        ARM.MOTOR[motor],
+        envelope('sim-arm', correlationId, {
+          ...meta,
+          motor,
+          jointIndex: idx,
+          angleDeg: angle,
+          unit: 'deg',
+        })
+      );
+    });
   }
 
   _getTargetAngles(binIndex) {
@@ -610,6 +634,7 @@ export class SimulationEngine {
           idle: true,
         })
       );
+      this._publishMotorTelemetry(angles, null, { idle: true });
     }, 300);
   }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSolaceConnection, useAllEvents } from './broker/useSolace.js';
 import { TOPIC_COLORS } from './constants/theme.js';
-import { shortTopic as stripPrefix, WILDCARDS } from './constants/topics.js';
+import { shortTopic as stripPrefix, WILDCARDS, ARM_MOTORS } from './constants/topics.js';
 import { SimulationEngine } from './simulation/SimulationEngine.js';
 import MarketplaceTab from './tabs/marketplace/MarketplaceTab.jsx';
 import ErpTab from './tabs/erp/ErpTab.jsx';
@@ -335,7 +335,12 @@ const TOPIC_HIERARCHY = {
           label: 'packing/line1', path: `${'candyfactory/paris/packing/line1'}/>`,
           children: [
             { label: 'scada', cat: 'scada', path: WILDCARDS.SCADA },
-            { label: 'arm', cat: 'arm', path: WILDCARDS.ARM },
+            {
+              label: 'arm', cat: 'arm', path: WILDCARDS.ARM,
+              children: ARM_MOTORS.map((m) => ({
+                label: m, cat: 'arm', path: `candyfactory/paris/packing/line1/arm/${m}`,
+              })),
+            },
             { label: 'hitl', cat: 'hitl', path: WILDCARDS.HITL },
           ],
         },

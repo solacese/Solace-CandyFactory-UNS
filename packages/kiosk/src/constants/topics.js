@@ -67,12 +67,28 @@ export const SCADA = {
 };
 
 // ─── LEVEL 0-1: ARM / FIELD CONTROL (line) ───────────────────
+// The 6 SO-101 follower motors, in physical joint order. Each motor
+// publishes its own telemetry on candyfactory/paris/packing/line1/arm/<motor>
+// so every servo is independently observable on the UNS.
+export const ARM_MOTORS = [
+  'shoulder_pan',
+  'shoulder_lift',
+  'elbow_flex',
+  'wrist_flex',
+  'wrist_roll',
+  'gripper',
+];
+
 export const ARM = {
   COMMAND: t(LINE, 'arm/command'),
   TELEMETRY: t(LINE, 'arm/telemetry'),
   STATUS: t(LINE, 'arm/status'),
   HITL_REQUIRED: t(LINE, 'hitl/approval-required'),
   HITL_APPROVED: t(LINE, 'hitl/approved'),
+  // Per-motor telemetry topics, keyed by motor name.
+  MOTOR: Object.fromEntries(
+    ARM_MOTORS.map((m) => [m, t(LINE, `arm/${m}`)])
+  ),
 };
 
 // ─── SAM — SOLACE AGENT MESH (enterprise-wide autonomous ops) ─
