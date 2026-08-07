@@ -31,6 +31,12 @@ function loopbackBrokerPlugin() {
 
 export default defineConfig({
   base,
+  // Expose the build mode to app code. Pages (loopback) shows the video feed;
+  // local/booth (non-loopback) shows the live 3D arm. Static replacement lets
+  // the bundler tree-shake the unused branch (three.js drops from the Pages build).
+  define: {
+    __LOOPBACK__: JSON.stringify(loopback),
+  },
   plugins: [react(), tailwindcss(), ...(loopback ? [loopbackBrokerPlugin()] : [])],
   server: { port: 3005 },
   resolve: {

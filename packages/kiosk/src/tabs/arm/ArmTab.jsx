@@ -1,8 +1,18 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useSubscription, usePublish } from '../../broker/useSolace.js';
 import { ARM, WILDCARDS, shortTopic as stripPrefix } from '../../constants/topics.js';
 import { SWEETS } from '../../constants/demo-data.js';
-import Arm3D from './Arm3D.jsx';
+
+// Build-mode switch (defined in vite.config.js):
+//   Pages / loopback build → embedded video of the real arm (no hardware, no WebGL).
+//   Local / booth build     → live 3D arm driven by the telemetry stream.
+// Arm3D (and its three.js dependency) is lazy-loaded, so it never enters the
+// Pages bundle when the video branch is the one that renders.
+const IS_LOOPBACK = typeof __LOOPBACK__ !== 'undefined' && __LOOPBACK__;
+// Only wire up the WebGL arm when it can actually render. Guarding the dynamic
+// import behind the compile-time flag lets Rollup drop the three.js chunk
+// entirely from the Pages/loopback build.
+const Arm3D = IS_LOOPBACK ? null : lazy(() => import('./Arm3D.jsx'));
 
 // ─── Constants ──────────────────────────────────────────────────
 const JOINT_NAMES = ['Base', 'Shoulder', 'Elbow', 'Wrist-P', 'Wrist-R', 'Gripper'];
@@ -11,6 +21,8 @@ const MAX_LOG_ENTRIES = 40;
 // If no real telemetry (source:"arm-bridge") arrives within this window, the
 // view falls back to labelling itself SIM. Matches the engine's yield timeout.
 const REAL_ARM_TIMEOUT_MS = 4000;
+// Live SO-101 footage for the hardware-free Pages demo.
+const ARM_VIDEO_ID = 'kCP5U_MXqCE';
 
 // ─── Main Component ─────────────────────────────────────────────
 export default function ArmTab() {
@@ -153,12 +165,16 @@ export default function ArmTab() {
               {armStatus.status || 'idle'}
             </span>
           </div>
-          <ArmLiveView
-            angles={jointAngles}
-            gripperState={gripperState}
-            active={isActive}
-            detail={armStatus.detail}
-          />
+          {IS_LOOPBACK ? (
+            <ArmVideoFeed active={isActive} detail={armStatus.detail} />
+          ) : (
+            <ArmLiveView
+              angles={jointAngles}
+              gripperState={gripperState}
+              active={isActive}
+              detail={armStatus.detail}
+            />
+          )}
           {/* Per-unit transaction banner */}
           <UnitBanner unit={currentUnit} status={armStatus.status} />
         </div>
@@ -210,6 +226,36 @@ export default function ArmTab() {
 
 // ─── Sub-components ─────────────────────────────────────────────
 
+// Embedded footage of the physical SO-101 — used by the hardware-free Pages
+// build so the kiosk still shows a moving arm without WebGL or a live stream.
+// Shares the same status overlay as the live view.
+function ArmVideoFeed({ active, detail }) {
+  const src =
+    `https://www.youtube-nocookie.com/embed/${ARM_VIDEO_ID}` +
+    `?autoplay=1&mute=1&loop=1&playlist=${ARM_VIDEO_ID}` +
+    `&controls=0&modestbranding=1&playsinline=1&rel=0&showinfo=0`;
+  return (
+    <div className="relative flex-1 min-h-0 bg-black overflow-hidden">
+      <iframe
+        className="absolute inset-0 w-full h-full"
+        src={src}
+        title="SO-101 arm"
+        frameBorder="0"
+        allow="autoplay; encrypted-media; picture-in-picture"
+        allowFullScreen
+      />
+      {/* Status overlay driven by the arm/status event stream */}
+      <div className="absolute bottom-0 inset-x-0 flex items-center gap-2 px-3 py-2
+        bg-gradient-to-t from-black/70 to-transparent pointer-events-none">
+        <span className={`w-1.5 h-1.5 pill ${active ? 'bg-[#00c895] animate-live' : 'bg-white/50'}`} />
+        <span className="t-label font-mono uppercase tracking-wider text-white/90 truncate">
+          {active ? (detail || 'Arm executing — telemetry live') : 'Arm idle — streaming pose'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // Live 3D SO-101 — a WebGL articulated arm driven directly by the joint-angle
 // telemetry stream (sim OR the physical arm-bridge; same jointAngles shape).
 // A small status overlay reflects the live arm/status event. If WebGL is
@@ -232,7 +278,9 @@ function ArmLiveView({ angles, gripperState, active, detail }) {
   return (
     <div className="relative flex-1 min-h-0 bg-[#04121f] overflow-hidden">
       <WebGLBoundary fallback={<ArmAngleFallback angles={angles} />}>
-        <Arm3D angles={angles} gripperState={gripperState} active={active} />
+        <Suspense fallback={<ArmAngleFallback angles={angles} />}>
+          <Arm3D angles={angles} gripperState={gripperState} active={active} />
+        </Suspense>
       </WebGLBoundary>
       {/* Status overlay driven by the arm/status event stream */}
       <div className="absolute bottom-0 inset-x-0 flex items-center gap-2 px-3 py-2

@@ -30,9 +30,12 @@ services:
     shm_size: 1g
     ulimits:
       core: -1
+      # Solace 10.26+ enforces a hard nofile limit of 1048576 at boot; a lower
+      # value makes the broker crash-loop ("POST Violation [022] … nofile
+      # 1048576 is required"). The soft limit stays at the documented dev value.
       nofile:
         soft: 2448
-        hard: 6592
+        hard: 1048576
     ports:
       - "8080:8080"     # PubSub+ Manager UI (admin/admin)
       - "9080:9080"     # SEMP / management REST

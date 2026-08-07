@@ -16,6 +16,23 @@ A live customer-facing demo for Solace: manufacturing + Unified Namespace (UNS) 
 
 ## Quick Start (All Local)
 
+### Kiosk with the live arm (one command)
+
+To run just the kiosk dashboard with the **live 3D arm** feed (broker + demo user + kiosk, non-loopback):
+
+```bash
+./scripts/run-local.sh
+# → broker comes up, 'haribot' user is created, kiosk starts at http://localhost:3005
+# If port 55555 is already taken:  SOLACE_SMF_PORT=55556 ./scripts/run-local.sh
+```
+
+The GitHub Pages build (loopback) shows an embedded video of the arm instead; the
+local build shown by this script renders the live WebGL arm driven by telemetry.
+Plug in the SO-101 and run the bridge (`cd packages/arm-bridge && python bridge.py`)
+to drive it — otherwise the ARM tab streams the simulated pose.
+
+The full manual setup follows.
+
 ### Prerequisites
 
 - Node.js >= 20
@@ -30,7 +47,7 @@ A live customer-facing demo for Solace: manufacturing + Unified Namespace (UNS) 
 docker compose -f docker-compose.solace.yml up -d
 
 # Wait ~30s for broker to boot, then create client user
-curl -u admin:admin -X POST http://localhost:9080/SEMP/v2/config/msgVpns/default/clientUsernames \
+curl -u admin:admin -X POST http://localhost:8080/SEMP/v2/config/msgVpns/default/clientUsernames \
   -H "Content-Type: application/json" \
   -d '{"clientUsername":"haribot","password":"haribot","enabled":true}'
 ```
